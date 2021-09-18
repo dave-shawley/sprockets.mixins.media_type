@@ -34,7 +34,6 @@ from tornado import web
 
 from . import handlers
 
-
 logger = logging.getLogger(__name__)
 SETTINGS_KEY = 'sprockets.mixins.mediatype.ContentSettings'
 """Key in application.settings to store the ContentSettings instance."""
@@ -87,7 +86,6 @@ class ContentSettings:
     instead.
 
     """
-
     def __init__(self):
         self._handlers = {}
         self._available_types = []
@@ -102,8 +100,8 @@ class ContentSettings:
         parsed = headers.parse_content_type(content_type)
         content_type = str(parsed)
         if content_type in self._handlers:
-            logger.warning('handler for %s already set to %r',
-                           content_type, self._handlers[content_type])
+            logger.warning('handler for %s already set to %r', content_type,
+                           self._handlers[content_type])
             return
 
         self._available_types.append(parsed)
@@ -182,8 +180,8 @@ def add_binary_content_type(application, content_type, pack, unpack):
                    handlers.BinaryContentHandler(content_type, pack, unpack))
 
 
-def add_text_content_type(application, content_type, default_encoding,
-                          dumps, loads):
+def add_text_content_type(application, content_type, default_encoding, dumps,
+                          loads):
     """
     Add handler for a text content type.
 
@@ -202,9 +200,10 @@ def add_text_content_type(application, content_type, default_encoding,
     parsed = headers.parse_content_type(content_type)
     parsed.parameters.pop('charset', None)
     normalized = str(parsed)
-    add_transcoder(application,
-                   handlers.TextContentHandler(normalized, dumps, loads,
-                                               default_encoding))
+    add_transcoder(
+        application,
+        handlers.TextContentHandler(normalized, dumps, loads,
+                                    default_encoding))
 
 
 def add_transcoder(application, transcoder, content_type=None):
@@ -277,7 +276,6 @@ class ContentMixin:
     using ``self.write()``.
 
     """
-
     def initialize(self):
         super().initialize()
         self._request_body = None
@@ -290,8 +288,7 @@ class ContentMixin:
             settings = get_settings(self.application, force_instance=True)
             acceptable = headers.parse_accept(
                 self.request.headers.get(
-                    'Accept',
-                    settings.default_content_type
+                    'Accept', settings.default_content_type
                     if settings.default_content_type else '*/*'))
             try:
                 selected, _ = algorithms.select_content_type(
@@ -327,11 +324,13 @@ class ContentMixin:
             except ValueError:
                 raise web.HTTPError(400, 'failed to parse content type %s',
                                     content_type)
-            content_type = '/'.join([content_type_header.content_type,
-                                     content_type_header.content_subtype])
+            content_type = '/'.join([
+                content_type_header.content_type,
+                content_type_header.content_subtype
+            ])
             if content_type_header.content_suffix is not None:
-                content_type = '+'.join([content_type,
-                                         content_type_header.content_suffix])
+                content_type = '+'.join(
+                    [content_type, content_type_header.content_suffix])
             try:
                 handler = settings[content_type]
             except KeyError:

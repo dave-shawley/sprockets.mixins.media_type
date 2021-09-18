@@ -23,6 +23,9 @@ jobs:
       - name: Flake8
         run: |
           flake8 sprockets tests.py
+      - name: Formatting
+        run: |
+          yapf -pqr docs setup.py sprockets tests.py
 
   test:
     runs-on: ubuntu-latest

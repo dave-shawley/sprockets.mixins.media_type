@@ -3,11 +3,10 @@ import os
 import pkg_resources
 
 needs_sphinx = '4.0'
-extensions = ['sphinx.ext.autodoc',
-              'sphinx.ext.viewcode',
-              'sphinx.ext.intersphinx',
-              'sphinx.ext.extlinks',
-              'sphinxcontrib.httpdomain']
+extensions = [
+    'sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks', 'sphinxcontrib.httpdomain'
+]
 master_doc = 'index'
 project = 'sprockets.mixins.mediatype'
 copyright = '2015-2021, AWeber Communications'

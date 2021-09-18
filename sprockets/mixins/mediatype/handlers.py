@@ -24,7 +24,6 @@ class BinaryContentHandler:
     and unpacking functions.
 
     """
-
     def __init__(self, content_type, pack, unpack):
         self._pack = pack
         self._unpack = unpack
@@ -77,7 +76,6 @@ class TextContentHandler:
     that tornado expects.
 
     """
-
     def __init__(self, content_type, dumps, loads, default_encoding):
         self._dumps = dumps
         self._loads = loads

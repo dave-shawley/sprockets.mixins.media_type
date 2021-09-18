@@ -47,8 +47,8 @@ class JSONTranscoder(handlers.TextContentHandler):
        :meth:`.loads` is called.
 
     """
-
-    def __init__(self, content_type='application/json',
+    def __init__(self,
+                 content_type='application/json',
                  default_encoding='utf-8'):
         super().__init__(content_type, self.dumps, self.loads,
                          default_encoding)
@@ -240,5 +240,5 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
                 out[k] = self.normalize_datum(v)
             return out
 
-        raise TypeError(
-            '{} is not msgpackable'.format(datum.__class__.__name__))
+        raise TypeError('{} is not msgpackable'.format(
+            datum.__class__.__name__))

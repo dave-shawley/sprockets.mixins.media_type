@@ -48,6 +48,10 @@ tool chest.  It provides the following commands:
 **flake8 sprockets tests.py**
    Run flake8 over the code and report style violations.
 
+**yapf -ri sprockets tests.py**
+   Inline format the code.  You might want to configure your editor to
+   do this for you every time you save.
+
 If any of the preceding commands give you problems, then you will have to
 fix them **before** your pull request will be accepted.
 

@@ -37,11 +37,11 @@ def pack_string(obj):
     """Optimally pack a string according to msgpack format"""
     payload = str(obj).encode('ASCII')
     pl = len(payload)
-    if pl < (2 ** 5):
+    if pl < (2**5):
         prefix = struct.pack('B', 0b10100000 | pl)
-    elif pl < (2 ** 8):
+    elif pl < (2**8):
         prefix = struct.pack('BB', 0xD9, pl)
-    elif pl < (2 ** 16):
+    elif pl < (2**16):
         prefix = struct.pack('>BH', 0xDA, pl)
     else:
         prefix = struct.pack('>BI', 0xDB, pl)
@@ -51,9 +51,9 @@ def pack_string(obj):
 def pack_bytes(payload):
     """Optimally pack a byte string according to msgpack format"""
     pl = len(payload)
-    if pl < (2 ** 8):
+    if pl < (2**8):
         prefix = struct.pack('BB', 0xC4, pl)
-    elif pl < (2 ** 16):
+    elif pl < (2**16):
         prefix = struct.pack('>BH', 0xC5, pl)
     else:
         prefix = struct.pack('>BI', 0xC6, pl)
@@ -61,42 +61,55 @@ def pack_bytes(payload):
 
 
 class SendResponseTests(testing.AsyncHTTPTestCase):
-
     def get_app(self):
         return examples.make_application()
 
     def test_that_content_type_default_works(self):
-        response = self.fetch('/', method='POST', body='{}',
+        response = self.fetch('/',
+                              method='POST',
+                              body='{}',
                               headers={'Content-Type': 'application/json'})
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
                          'application/json; charset="utf-8"')
 
     def test_that_missing_content_type_uses_default(self):
-        response = self.fetch('/', method='POST', body='{}',
-                              headers={'Accept': 'application/xml',
-                                       'Content-Type': 'application/json'})
+        response = self.fetch('/',
+                              method='POST',
+                              body='{}',
+                              headers={
+                                  'Accept': 'application/xml',
+                                  'Content-Type': 'application/json'
+                              })
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
                          'application/json; charset="utf-8"')
 
     def test_that_accept_header_is_obeyed(self):
-        response = self.fetch('/', method='POST', body='{}',
-                              headers={'Accept': 'application/msgpack',
-                                       'Content-Type': 'application/json'})
+        response = self.fetch('/',
+                              method='POST',
+                              body='{}',
+                              headers={
+                                  'Accept': 'application/msgpack',
+                                  'Content-Type': 'application/json'
+                              })
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
                          'application/msgpack')
 
     def test_that_default_content_type_is_set_on_response(self):
-        response = self.fetch('/', method='POST', body=umsgpack.packb({}),
+        response = self.fetch('/',
+                              method='POST',
+                              body=umsgpack.packb({}),
                               headers={'Content-Type': 'application/msgpack'})
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
                          'application/json; charset="utf-8"')
 
     def test_that_vary_header_is_set(self):
-        response = self.fetch('/', method='POST', body=umsgpack.packb({}),
+        response = self.fetch('/',
+                              method='POST',
+                              body=umsgpack.packb({}),
                               headers={'Content-Type': 'application/msgpack'})
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Vary'], 'Accept')
@@ -106,9 +119,13 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
             self._app,
             transcoders.MsgPackTranscoder(content_type='expected/content'),
             'application/vendor+msgpack')
-        response = self.fetch('/', method='POST', body='{}',
-                              headers={'Accept': 'application/vendor+msgpack',
-                                       'Content-Type': 'application/json'})
+        response = self.fetch('/',
+                              method='POST',
+                              body='{}',
+                              headers={
+                                  'Accept': 'application/vendor+msgpack',
+                                  'Content-Type': 'application/json'
+                              })
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'], 'expected/content')
 
@@ -123,54 +140,55 @@ class GetRequestBodyTests(testing.AsyncHTTPTestCase):
         return self.app
 
     def test_that_request_with_unhandled_type_results_in_415(self):
-        response = self.fetch(
-            '/', method='POST', headers={'Content-Type': 'application/xml'},
-            body=('<request><name>value</name>'
-                  '<embedded><utf8>\u2731</utf8></embedded>'
-                  '</request>').encode('utf-8'))
+        response = self.fetch('/',
+                              method='POST',
+                              headers={'Content-Type': 'application/xml'},
+                              body=('<request><name>value</name>'
+                                    '<embedded><utf8>\u2731</utf8></embedded>'
+                                    '</request>').encode('utf-8'))
         self.assertEqual(response.code, 415)
 
     def test_that_msgpack_request_returns_default_type(self):
-        body = {
-            'name': 'value',
-            'embedded': {
-                'utf8': '\u2731'
-            }
-        }
-        response = self.fetch('/', method='POST', body=umsgpack.packb(body),
+        body = {'name': 'value', 'embedded': {'utf8': '\u2731'}}
+        response = self.fetch('/',
+                              method='POST',
+                              body=umsgpack.packb(body),
                               headers={'Content-Type': 'application/msgpack'})
         self.assertEqual(response.code, 200)
         self.assertEqual(json.loads(response.body.decode('utf-8')), body)
 
     def test_that_invalid_data_returns_400(self):
         response = self.fetch(
-            '/', method='POST', headers={'Content-Type': 'application/json'},
+            '/',
+            method='POST',
+            headers={'Content-Type': 'application/json'},
             body=('<?xml version="1.0"?><methodCall><methodName>echo'
                   '</methodName><params><param><value><str>Hi</str></value>'
                   '</param></params></methodCall>').encode('utf-8'))
         self.assertEqual(response.code, 400)
 
     def test_that_content_type_suffix_is_handled(self):
-        content.add_transcoder(
-            self._app, transcoders.JSONTranscoder(),
-            'application/vendor+json')
+        content.add_transcoder(self._app, transcoders.JSONTranscoder(),
+                               'application/vendor+json')
         body = {'hello': 'world'}
         response = self.fetch(
-            '/', method='POST', body=json.dumps(body),
+            '/',
+            method='POST',
+            body=json.dumps(body),
             headers={'Content-Type': 'application/vendor+json'})
         self.assertEqual(response.code, 200)
         self.assertEqual(json.loads(response.body.decode()), body)
 
     def test_that_invalid_content_types_result_in_bad_request(self):
         content.set_default_content_type(self.app, None, None)
-        response = self.fetch(
-            '/', method='POST', body='{"hi":"there"}',
-            headers={'Content-Type': 'application-json'})
+        response = self.fetch('/',
+                              method='POST',
+                              body='{"hi":"there"}',
+                              headers={'Content-Type': 'application-json'})
         self.assertEqual(response.code, 400)
 
 
 class JSONTranscoderTests(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.transcoder = transcoders.JSONTranscoder()
@@ -211,7 +229,6 @@ class JSONTranscoderTests(unittest.TestCase):
 
 
 class ContentSettingsTests(unittest.TestCase):
-
     def test_that_handler_listed_in_available_content_types(self):
         settings = content.ContentSettings()
         settings['application/json'] = object()
@@ -249,14 +266,12 @@ class ContentSettingsTests(unittest.TestCase):
 
 
 class ContentFunctionTests(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.context = Context()
 
     def test_that_add_binary_content_type_creates_binary_handler(self):
-        settings = content.install(self.context,
-                                   'application/octet-stream')
+        settings = content.install(self.context, 'application/octet-stream')
         content.add_binary_content_type(self.context,
                                         'application/vnd.python.pickle',
                                         pickle.dumps, pickle.loads)
@@ -304,7 +319,6 @@ class ContentFunctionTests(unittest.TestCase):
 
 
 class MsgPackTranscoderTests(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.transcoder = transcoders.MsgPackTranscoder()
@@ -322,22 +336,21 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(self.transcoder.packb(True), b'\xC3')
 
     def test_that_ints_are_packed_appropriately(self):
-        self.assertEqual(self.transcoder.packb((2 ** 7) - 1), b'\x7F')
-        self.assertEqual(self.transcoder.packb(2 ** 7), b'\xCC\x80')
-        self.assertEqual(self.transcoder.packb(2 ** 8), b'\xCD\x01\x00')
-        self.assertEqual(self.transcoder.packb(2 ** 16),
-                         b'\xCE\x00\x01\x00\x00')
-        self.assertEqual(self.transcoder.packb(2 ** 32),
+        self.assertEqual(self.transcoder.packb((2**7) - 1), b'\x7F')
+        self.assertEqual(self.transcoder.packb(2**7), b'\xCC\x80')
+        self.assertEqual(self.transcoder.packb(2**8), b'\xCD\x01\x00')
+        self.assertEqual(self.transcoder.packb(2**16), b'\xCE\x00\x01\x00\x00')
+        self.assertEqual(self.transcoder.packb(2**32),
                          b'\xCF\x00\x00\x00\x01\x00\x00\x00\x00')
 
     def test_that_negative_ints_are_packed_accordingly(self):
-        self.assertEqual(self.transcoder.packb(-(2 ** 0)), b'\xFF')
-        self.assertEqual(self.transcoder.packb(-(2 ** 5)), b'\xE0')
-        self.assertEqual(self.transcoder.packb(-(2 ** 7)), b'\xD0\x80')
-        self.assertEqual(self.transcoder.packb(-(2 ** 15)), b'\xD1\x80\x00')
-        self.assertEqual(self.transcoder.packb(-(2 ** 31)),
+        self.assertEqual(self.transcoder.packb(-(2**0)), b'\xFF')
+        self.assertEqual(self.transcoder.packb(-(2**5)), b'\xE0')
+        self.assertEqual(self.transcoder.packb(-(2**7)), b'\xD0\x80')
+        self.assertEqual(self.transcoder.packb(-(2**15)), b'\xD1\x80\x00')
+        self.assertEqual(self.transcoder.packb(-(2**31)),
                          b'\xD2\x80\x00\x00\x00')
-        self.assertEqual(self.transcoder.packb(-(2 ** 63)),
+        self.assertEqual(self.transcoder.packb(-(2**63)),
                          b'\xD3\x80\x00\x00\x00\x00\x00\x00\x00')
 
     def test_that_lists_are_treated_as_arrays(self):
