@@ -1,22 +1,13 @@
-import os
+from importlib import metadata
 
-import pkg_resources
-
-needs_sphinx = '4.0'
+needs_sphinx = '7.0'
 extensions = ['sphinx.ext.viewcode', 'sphinxcontrib.httpdomain']
 master_doc = 'index'
 project = 'sprockets.mixins.mediatype'
 copyright = '2015-2021, AWeber Communications'
-release = pkg_resources.get_distribution('sprockets.mixins.mediatype').version
+release = metadata.version('sprockets-mixins-mediatype')
 version = '.'.join(release.split('.')[0:1])
-
-# Only install the ReadTheDocs theme when we are not running
-# in the RTD build system.
-if not os.environ.get('READTHEDOCS', None):
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-
+html_theme = 'sphinx_rtd_theme'
 html_sidebars = {
     '**': ['about.html', 'navigation.html'],
 }

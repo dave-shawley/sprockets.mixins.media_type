@@ -365,7 +365,8 @@ class ContentMixin(web.RequestHandler):
                 'Content-Type', settings.default_content_type)
 
             try:
-                content_type_header = headers.parse_content_type(content_type)
+                content_type_header = headers.parse_content_type(
+                    content_type or 'binary/octet-stream')
             except ValueError:
                 raise web.HTTPError(400, 'failed to parse content type %s',
                                     content_type)

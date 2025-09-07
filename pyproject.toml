@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sprockets.mixins.mediatype"
+version = '3.0.5'
+description = "A mixin for reporting handling content-type/accept headers."
+readme = "README.rst"
+license = "BSD-3-Clause"
+authors = [{ name = "AWeber Communications", email = "api@aweber.com" }]
+requires-python = ">=3.9"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = ["ietfparse>=1.5.1,<2", "tornado>=5,<7"]
+
+[project.urls]
+Changelog = "https://sprocketsmixinsmedia-type.readthedocs.io/en/latest/history.html"
+Documentation = "https://sprocketsmixinsmedia-type.readthedocs.io"
+Download = "https://pypi.org/project/sprockets.mixins.mediatype/"
+Homepage = "https://github.com/sprockets/sprockets.mixins.mediatype"
+Source = "https://github.com/sprockets/sprockets.mixins.mediatype"
+
+[project.optional-dependencies]
+msgpack = ["u-msgpack-python>=2.5.0,<3"]
+ci = [
+  "coverage[toml]>7.10",
+  "flake8>=7.3",
+  "flake8-pyproject",
+  "mypy==0.910",
+  "yapf==0.31.0",
+]
+dev = [
+  "coverage>=7.10",
+  "flake8>=7.3",
+  "flake8-pyproject",
+  "mypy==0.910",
+  "yapf==0.31.0",
+  "sphinx>=7.4,<9",
+  "sphinx-rtd-theme>=3.0.2,<4",
+  "sphinxcontrib-httpdomain>=1.8.1,<2",
+]
+docs = [
+  "sphinx>=8.2.3,<9",
+  "sphinx-rtd-theme>=3.0.2,<4",
+  "sphinxcontrib-httpdomain>=1.8.1,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["sprockets"]
+
+[tool.coverage.run]
+branch = true
+omit = ["sprockets/mixins/mediatype/type_info.py"]
+source = ["sprockets"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
+[tool.flake8]
+exclude = ["build", "env", ".eggs"]
+
+[tool.yapf]
+allow_split_before_dict_value = false
+
+[tool.mypy]
+mypy_path = "typestubs"
+show_error_codes = true
+strict = true

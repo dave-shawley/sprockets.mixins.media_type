@@ -1,6 +1,0 @@
-include LICENSE
-include tests.py
-include sprockets/mixins/mediatype/py.typed
-graft docs
-graft requires
-graft typestubs
