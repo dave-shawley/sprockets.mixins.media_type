@@ -2,8 +2,9 @@ import logging
 import signal
 import typing
 
-from sprockets.mixins.mediatype import content, transcoders
 from tornado import ioloop, web
+
+from sprockets.mixins.mediatype import content, transcoders
 
 
 class SimpleHandler(content.ContentMixin, web.RequestHandler):
@@ -24,7 +25,8 @@ def make_application(**settings: typing.Any) -> web.Application:
 
 
 def _signal_handler(signo: int, _: typing.Any) -> None:
-    logging.info('received signal %d, stopping application', signo)
+    logger = logging.getLogger('signal_handler')
+    logger.info('received signal %d, stopping application', signo)
     iol = ioloop.IOLoop.instance()
     iol.add_callback_from_signal(iol.stop)
 

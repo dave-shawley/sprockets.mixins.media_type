@@ -385,7 +385,7 @@ class ContentMixin(web.RequestHandler):
 
             try:
                 self._request_body = handler.from_bytes(self.request.body)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self._logger.error('failed to decode request body')
                 raise web.HTTPError(400, 'failed to decode request')
 

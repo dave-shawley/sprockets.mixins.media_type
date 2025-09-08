@@ -37,9 +37,10 @@ class BinaryContentHandler:
         self.content_type = content_type
 
     def to_bytes(
-            self,
-            inst_data: type_info.Serializable,
-            encoding: typing.Optional[str] = None) -> typing.Tuple[str, bytes]:
+        self,
+        inst_data: type_info.Serializable,
+        encoding: typing.Optional[str] = None  # noqa: ARG002
+    ) -> typing.Tuple[str, bytes]:
         """
         Transform an object into :class:`bytes`.
 
@@ -53,9 +54,10 @@ class BinaryContentHandler:
         return self.content_type, self._pack(inst_data)
 
     def from_bytes(
-            self,
-            data_bytes: bytes,
-            encoding: typing.Optional[str] = None) -> type_info.Deserialized:
+        self,
+        data_bytes: bytes,
+        encoding: typing.Optional[str] = None  # noqa: ARG002
+    ) -> type_info.Deserialized:
         """
         Get an object from :class:`bytes`
 

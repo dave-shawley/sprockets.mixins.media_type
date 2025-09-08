@@ -7,28 +7,20 @@ import pickle
 import struct
 import typing
 import unittest.mock
+import urllib.parse
 import uuid
 
+import umsgpack
 from ietfparse import algorithms
 from tornado import httputil, testing, web
-import umsgpack
 
-from sprockets.mixins.mediatype import (content, handlers, transcoders,
-                                        type_info)
 import examples
-
-
-class UTC(datetime.tzinfo):
-    ZERO = datetime.timedelta(0)
-
-    def utcoffset(self, dt):
-        return self.ZERO
-
-    def dst(self, dt):
-        return self.ZERO
-
-    def tzname(self, dt):
-        return 'UTC'
+from sprockets.mixins.mediatype import (
+    content,
+    handlers,
+    transcoders,
+    type_info,
+)
 
 
 class Context:
@@ -319,29 +311,29 @@ class JSONTranscoderTests(unittest.TestCase):
         self.assertEqual(dumped.replace(' ', ''), '{"id":"%s"}' % obj['id'])
 
     def test_that_datetimes_are_dumped_in_isoformat(self):
-        obj = {'now': datetime.datetime.now()}
+        obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
         dumped = self.transcoder.dumps(obj)
         self.assertEqual(dumped.replace(' ', ''),
                          '{"now":"%s"}' % obj['now'].isoformat())
 
     def test_that_tzaware_datetimes_include_tzoffset(self):
-        obj = {'now': datetime.datetime.now().replace(tzinfo=UTC())}
+        obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
         self.assertTrue(obj['now'].isoformat().endswith('+00:00'))
         dumped = self.transcoder.dumps(obj)
         self.assertEqual(dumped.replace(' ', ''),
                          '{"now":"%s"}' % obj['now'].isoformat())
 
     def test_that_bytearrays_are_base64_encoded(self):
-        bin = bytearray(os.urandom(127))
-        dumped = self.transcoder.dumps({'bin': bin})
+        payload = bytearray(os.urandom(127))
+        dumped = self.transcoder.dumps({'bin': payload})
         self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(bin).decode('ASCII'))
+            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII'))
 
     def test_that_memoryviews_are_base64_encoded(self):
-        bin = memoryview(os.urandom(127))
-        dumped = self.transcoder.dumps({'bin': bin})
+        payload = memoryview(os.urandom(127))
+        dumped = self.transcoder.dumps({'bin': payload})
         self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(bin).decode('ASCII'))
+            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII'))
 
     def test_that_unhandled_objects_raise_type_error(self):
         with self.assertRaises(TypeError):
@@ -479,12 +471,12 @@ class MsgPackTranscoderTests(unittest.TestCase):
                          b'\xD3\x80\x00\x00\x00\x00\x00\x00\x00')
 
     def test_that_lists_are_treated_as_arrays(self):
-        dumped = self.transcoder.packb(list())
+        dumped = self.transcoder.packb([])
         self.assertEqual(self.transcoder.unpackb(dumped), [])
         self.assertEqual(dumped, b'\x90')
 
     def test_that_tuples_are_treated_as_arrays(self):
-        dumped = self.transcoder.packb(tuple())
+        dumped = self.transcoder.packb(())
         self.assertEqual(self.transcoder.unpackb(dumped), [])
         self.assertEqual(dumped, b'\x90')
 
@@ -504,13 +496,13 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(dumped, pack_string(uid))
 
     def test_that_datetimes_are_dumped_in_isoformat(self):
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(datetime.timezone.utc)
         dumped = self.transcoder.packb(now)
         self.assertEqual(self.transcoder.unpackb(dumped), now.isoformat())
         self.assertEqual(dumped, pack_string(now.isoformat()))
 
     def test_that_tzaware_datetimes_include_tzoffset(self):
-        now = datetime.datetime.now().replace(tzinfo=UTC())
+        now = datetime.datetime.now(datetime.timezone.utc)
         self.assertTrue(now.isoformat().endswith('+00:00'))
         dumped = self.transcoder.packb(now)
         self.assertEqual(self.transcoder.unpackb(dumped), now.isoformat())
@@ -548,9 +540,8 @@ class MsgPackTranscoderTests(unittest.TestCase):
     def test_that_transcoder_creation_fails_if_umsgpack_is_missing(self):
         with unittest.mock.patch(
                 'sprockets.mixins.mediatype.transcoders.umsgpack',
-                new_callable=lambda: None):
-            with self.assertRaises(RuntimeError):
-                transcoders.MsgPackTranscoder()
+                new_callable=lambda: None), self.assertRaises(RuntimeError):
+            transcoders.MsgPackTranscoder()
 
 
 class FormUrlEncodingTranscoderTests(unittest.TestCase):
@@ -589,7 +580,7 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual({'kolor': 'żółty'}, body)
 
     def test_simple_serialization(self):
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(datetime.timezone.utc)
         id_val = uuid.uuid4()
         content_type, result = self.transcoder.to_bytes({
             'integer': 12,
@@ -604,7 +595,7 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
                 'integer=12',
                 f'float={math.pi}',
                 'string=percent%20quoted',
-                'datetime=' + now.isoformat().replace(':', '%3A'),
+                'datetime=' + urllib.parse.quote(now.isoformat()),
                 f'id={id_val}',
             ]))
 
@@ -646,11 +637,11 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         # build the set of all characters required to be encoded by
         # https://url.spec.whatwg.org/#percent-encoded-bytes
         pct_chrs = typing.cast(typing.Set[str], set())
-        pct_chrs.update({c for c in ' "#<>'})  # query set
-        pct_chrs.update({c for c in '?`{}'})  # path set
-        pct_chrs.update({c for c in '/:;=@[^|'})  # userinfo set
-        pct_chrs.update({c for c in '$%&+,'})  # component set
-        pct_chrs.update({c for c in "!'()~"})  # formurlencoding set
+        pct_chrs.update(set(' "#<>'))  # query set
+        pct_chrs.update(set('?`{}'))  # path set
+        pct_chrs.update(set('/:;=@[^|'))  # userinfo set
+        pct_chrs.update(set('$%&+,'))  # component set
+        pct_chrs.update(set("!'()~"))  # formurlencoding set
 
         test_string = ''.join(pct_chrs)
         expected = ''.join('%{:02X}'.format(ord(c)) for c in test_string)

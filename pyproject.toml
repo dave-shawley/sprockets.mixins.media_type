@@ -34,18 +34,11 @@ Source = "https://github.com/sprockets/sprockets.mixins.mediatype"
 
 [project.optional-dependencies]
 msgpack = ["u-msgpack-python>=2.5.0,<3"]
-ci = [
-  "coverage[toml]>7.10",
-  "flake8>=7.3",
-  "flake8-pyproject",
-  "mypy==0.910",
-  "yapf==0.31.0",
-]
+ci = ["coverage[toml]>7.10", "mypy==0.910", "ruff>=0.12.11,<0.13", "yapf==0.31.0"]
 dev = [
   "coverage>=7.10",
-  "flake8>=7.3",
-  "flake8-pyproject",
   "mypy==0.910",
+  "ruff>=0.12.11,<0.13",
   "yapf==0.31.0",
   "sphinx>=7.4,<9",
   "sphinx-rtd-theme>=3.0.2,<4",
@@ -69,9 +62,6 @@ source = ["sprockets"]
 fail_under = 100
 show_missing = true
 
-[tool.flake8]
-exclude = ["build", "env", ".eggs"]
-
 [tool.yapf]
 allow_split_before_dict_value = false
 
@@ -79,3 +69,40 @@ allow_split_before_dict_value = false
 mypy_path = "typestubs"
 show_error_codes = true
 strict = true
+
+[tool.ruff]
+line-length = 79
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+  "A",
+  "ARG",
+  "ASYNC",
+  "BLE",
+  "C4",
+  "DTZ",
+  "E",
+  "ERA",
+  "F",
+  "FURB",
+  "G",
+  "I",
+  "LOG",
+  "N",
+  "PIE",
+  "PTH",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "T10",
+  "T20",
+  "W",
+]
+flake8-quotes = { inline-quotes = "single" }
+
+[tool.ruff.lint.per-file-ignores]
+"tests.py" = ["ARG002", "BLE"]

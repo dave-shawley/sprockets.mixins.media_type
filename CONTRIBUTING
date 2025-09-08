@@ -43,8 +43,8 @@ tool chest.  It provides the following commands:
 **sphinx-build -b html docs/ build/sphinx**
    Generate the documentation using sphinx.
 
-**flake8 sprockets tests.py**
-   Run flake8 over the code and report style violations.
+**ruff check sprockets tests.py**
+   Run linter over the code and report style violations.
 
 **yapf -ri sprockets tests.py**
    Inline format the code.  You might want to configure your editor to

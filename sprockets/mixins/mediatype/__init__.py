@@ -3,9 +3,10 @@
 from importlib import metadata
 
 try:
-    from .content import (  # noqa: F401
+    from .content import (  # noqa: I001, F401 -- I001 due to yapf vs ruff
         ContentMixin, ContentSettings, add_binary_content_type,
-        add_text_content_type, set_default_content_type)
+        add_text_content_type, set_default_content_type,
+    )
 except ImportError:  # pragma: no cover
     import warnings
 

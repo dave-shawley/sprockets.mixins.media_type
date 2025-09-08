@@ -9,14 +9,13 @@ Bundled media type transcoders.
 from __future__ import annotations
 
 import base64
+import collections.abc
 import dataclasses
 import json
 import string
 import typing
 import urllib.parse
 import uuid
-
-import collections.abc
 
 try:
     import umsgpack
@@ -25,7 +24,7 @@ except ImportError:  # pragma: no cover
 
 from sprockets.mixins.mediatype import handlers, type_info
 
-_FORM_URLENCODING = {c: '%{:02X}'.format(c) for c in range(0, 255)}
+_FORM_URLENCODING = {c: '%{:02X}'.format(c) for c in range(255)}
 _FORM_URLENCODING.update({ord(c): c for c in string.ascii_letters})
 _FORM_URLENCODING.update({ord(c): c for c in string.digits})
 _FORM_URLENCODING.update({ord(c): c for c in '*-_.'})
