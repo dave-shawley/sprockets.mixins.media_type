@@ -52,19 +52,9 @@ SETTINGS_KEY = 'sprockets.mixins.mediatype.ContentSettings'
 _warning_issued = False
 
 
-def _format_content_type(
-    ct: datastructures.ContentType,
-    *,
-    with_parameters: bool = False,
-) -> str:
-    suffix, params = '', ''
-    if ct.content_suffix:
-        suffix = f'+{ct.content_suffix}'
-    if with_parameters and ct.parameters:
-        params = '; '.join(f'{name}={ct.parameters[name]}'
-                           for name in sorted(ct.parameters))
-        params = f'; {params}'
-    return f'{ct.content_type}/{ct.content_subtype}{suffix}{params}'
+def _format_content_type(ct: datastructures.ContentType) -> str:
+    return (f'{ct.content_type}/{ct.content_subtype}+{ct.content_suffix}' if
+            ct.content_suffix else f'{ct.content_type}/{ct.content_subtype}')
 
 
 class ContentSettings:

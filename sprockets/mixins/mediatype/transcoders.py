@@ -462,12 +462,11 @@ class FormUrlEncodedTranscoder:
                     'Cannot convert value to sequence of tuples') from e
 
         if self.options.encode_sequences:
-            out_tuples = []
+            out_tuples: list[typing.Tuple[typing.Any, typing.Any]] = []
             for a, b in tuples:
                 if (not isinstance(b, (bytes, bytearray, memoryview, str))
                         and isinstance(b, collections.abc.Iterable)):
-                    for value in b:
-                        out_tuples.append((a, value))
+                    out_tuples.extend((a, elm) for elm in b)
                 else:
                     out_tuples.append((a, b))
             tuples = out_tuples

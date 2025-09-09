@@ -29,19 +29,17 @@ intersphinx_mapping = {
 extensions.append('sphinx.ext.autodoc')
 autodoc_type_aliases = {
     alias: f'sprockets.mixins.mediatype.type_info.{alias}'
-    for alias in {
-        'DefinesIsoFormat', 'Deserialized', 'DumpSFunction', 'HasSettings',
-        'LoadSFunction', 'MsgPackable', 'PackBFunction', 'Serializable',
-        'Transcoder', 'UnpackBFunction'
-    }
+    for alias in ('DefinesIsoFormat', 'Deserialized', 'DumpSFunction',
+                  'HasSettings', 'LoadSFunction', 'MsgPackable',
+                  'PackBFunction', 'Serializable', 'Transcoder',
+                  'UnpackBFunction')
 }
 autodoc_type_aliases.update({
     f'type_info.{alias}': f'sprockets.mixins.mediatype.type_info.{alias}'
-    for alias in {
-        'DefinesIsoFormat', 'Deserialized', 'DumpSFunction', 'HasSettings',
-        'LoadSFunction', 'MsgPackable', 'PackBFunction', 'Serializable',
-        'Transcoder', 'UnpackBFunction'
-    }
+    for alias in ('DefinesIsoFormat', 'Deserialized', 'DumpSFunction',
+                  'HasSettings', 'LoadSFunction', 'MsgPackable',
+                  'PackBFunction', 'Serializable', 'Transcoder',
+                  'UnpackBFunction')
 })
 
 # https://www.sphinx-doc.org/en/master/usage/extensions/extlinks.html

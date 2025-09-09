@@ -94,6 +94,7 @@ select = [
   "LOG",
   "N",
   "PIE",
+  "PL",
   "PTH",
   "Q",
   "RET",

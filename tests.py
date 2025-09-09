@@ -669,7 +669,7 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
     def test_serialization_with_empty_literal_map(self):
         self.transcoder: transcoders.FormUrlEncodedTranscoder
         self.transcoder.options.literal_mapping.clear()
-        for value in {None, True, False}:
+        for value in (None, True, False):
             _, result = self.transcoder.to_bytes(value)
             self.assertEqual(str(value).encode(), result)
 
