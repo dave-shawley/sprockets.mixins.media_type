@@ -52,6 +52,21 @@ SETTINGS_KEY = 'sprockets.mixins.mediatype.ContentSettings'
 _warning_issued = False
 
 
+def _format_content_type(
+    ct: datastructures.ContentType,
+    *,
+    with_parameters: bool = False,
+) -> str:
+    suffix, params = '', ''
+    if ct.content_suffix:
+        suffix = f'+{ct.content_suffix}'
+    if with_parameters and ct.parameters:
+        params = '; '.join(f'{name}={ct.parameters[name]}'
+                           for name in sorted(ct.parameters))
+        params = f'; {params}'
+    return f'{ct.content_type}/{ct.content_subtype}{suffix}{params}'
+
+
 class ContentSettings:
     """
     Content selection settings.
@@ -338,11 +353,7 @@ class ContentMixin(web.RequestHandler):
             try:
                 selected, _ = algorithms.select_content_type(
                     acceptable, settings.available_content_types)
-                self._best_response_match = '/'.join(
-                    [selected.content_type, selected.content_subtype])
-                if selected.content_suffix is not None:
-                    self._best_response_match = '+'.join(
-                        [self._best_response_match, selected.content_suffix])
+                self._best_response_match = _format_content_type(selected)
             except errors.NoMatch:
                 self._best_response_match = settings.default_content_type
 
@@ -370,13 +381,7 @@ class ContentMixin(web.RequestHandler):
             except ValueError as e:
                 raise web.HTTPError(400, 'failed to parse content type %s',
                                     content_type) from e
-            content_type = '/'.join([
-                content_type_header.content_type,
-                content_type_header.content_subtype
-            ])
-            if content_type_header.content_suffix is not None:
-                content_type = '+'.join(
-                    [content_type, content_type_header.content_suffix])
+            content_type = _format_content_type(content_type_header)
             try:
                 handler = settings[content_type]
             except KeyError as e:
