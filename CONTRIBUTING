@@ -37,8 +37,13 @@ You can also run the tox utility to verify the supported Python versions::
      py312: commands succeeded
      congratulations :)
 
-For other commands, *setup.py* is the swiss-army knife in your development
-tool chest.  It provides the following commands:
+ You should also install the pre-commit hook to ensure that your code
+ is formatted correctly before you commit::
+
+   $ pre-commit install --install-hooks --overwrite
+
+There are a number of other tools that you can use to help you develop
+sprockets.  Here are a few of them:
 
 **sphinx-build -b html docs/ build/sphinx**
    Generate the documentation using sphinx.
