@@ -457,8 +457,9 @@ class FormUrlEncodedTranscoder:
         else:
             try:
                 tuples = [(a, b) for a, b in value]  # type: ignore
-            except (TypeError, ValueError):
-                raise TypeError('Cannot convert value to sequence of tuples')
+            except (TypeError, ValueError) as e:
+                raise TypeError(
+                    'Cannot convert value to sequence of tuples') from e
 
         if self.options.encode_sequences:
             out_tuples = []

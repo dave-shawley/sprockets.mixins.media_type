@@ -146,11 +146,11 @@ class ContentSettings:
     @default_content_type.setter
     def default_content_type(self, new_value: typing.Union[str, None]) -> None:
         if new_value is None:
-            warnings.warn(
-                DeprecationWarning(
-                    'Using sprockets.mixins.mediatype without a default'
-                    ' content type is deprecated and will become an error'
-                    ' in a future version'))
+            warnings.warn(DeprecationWarning(
+                'Using sprockets.mixins.mediatype without a default'
+                ' content type is deprecated and will become an error'
+                ' in a future version'),
+                          stacklevel=2)
         self._default_content_type = new_value
 
 
@@ -367,9 +367,9 @@ class ContentMixin(web.RequestHandler):
             try:
                 content_type_header = headers.parse_content_type(
                     content_type or 'binary/octet-stream')
-            except ValueError:
+            except ValueError as e:
                 raise web.HTTPError(400, 'failed to parse content type %s',
-                                    content_type)
+                                    content_type) from e
             content_type = '/'.join([
                 content_type_header.content_type,
                 content_type_header.content_subtype
@@ -379,15 +379,15 @@ class ContentMixin(web.RequestHandler):
                     [content_type, content_type_header.content_suffix])
             try:
                 handler = settings[content_type]
-            except KeyError:
+            except KeyError as e:
                 raise web.HTTPError(415, 'cannot decode body of type %s',
-                                    content_type)
+                                    content_type) from e
 
             try:
                 self._request_body = handler.from_bytes(self.request.body)
-            except Exception:  # noqa: BLE001
+            except Exception as e:
                 self._logger.error('failed to decode request body')
-                raise web.HTTPError(400, 'failed to decode request')
+                raise web.HTTPError(400, 'failed to decode request') from e
 
         return self._request_body
 
@@ -422,7 +422,7 @@ class ContentMixin(web.RequestHandler):
                 'no transcoder for the selected response content type %s, '
                 'is the default content type %r correct?', response_type,
                 settings.default_content_type)
-            raise web.HTTPError(500)
+            raise web.HTTPError(500) from None
         else:
             try:
                 content_type, data_bytes = handler.to_bytes(body)
@@ -430,7 +430,8 @@ class ContentMixin(web.RequestHandler):
                 self._logger.error(
                     'selected transcoder (%s) failed to encode response '
                     'body: %s', handler.__class__.__name__, e)
-                raise web.HTTPError(500, reason='Response Encoding Failure')
+                raise web.HTTPError(500,
+                                    reason='Response Encoding Failure') from e
             else:
                 if set_content_type:
                     self.set_header('Content-Type', content_type)

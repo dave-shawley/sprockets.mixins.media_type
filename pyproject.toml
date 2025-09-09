@@ -80,6 +80,7 @@ select = [
   "A",
   "ARG",
   "ASYNC",
+  "B",
   "BLE",
   "C4",
   "DTZ",
