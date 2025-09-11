@@ -105,6 +105,7 @@ select = [
   "SIM",
   "T10",
   "T20",
+  "TC",
   "W",
 ]
 flake8-quotes = { inline-quotes = "single" }

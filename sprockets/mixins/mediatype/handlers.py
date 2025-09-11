@@ -13,7 +13,8 @@ import typing
 
 from tornado import escape
 
-from sprockets.mixins.mediatype import type_info
+if typing.TYPE_CHECKING:
+    from sprockets.mixins.mediatype import type_info
 
 
 class BinaryContentHandler:

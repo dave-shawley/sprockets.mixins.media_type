@@ -642,7 +642,7 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
     def test_that_required_octets_are_encoded(self) -> None:
         # build the set of all characters required to be encoded by
         # https://url.spec.whatwg.org/#percent-encoded-bytes
-        pct_chrs = typing.cast(typing.Set[str], set())
+        pct_chrs = typing.cast('typing.Set[str]', set())
         pct_chrs.update(set(' "#<>'))  # query set
         pct_chrs.update(set('?`{}'))  # path set
         pct_chrs.update(set('/:;=@[^|'))  # userinfo set

@@ -164,7 +164,7 @@ def install(application: type_info.HasSettings,
             encoding: typing.Optional[str] = None) -> ContentSettings:
     """Install the media type management settings and return it"""
     try:
-        settings = typing.cast(ContentSettings,
+        settings = typing.cast('ContentSettings',
                                application.settings[SETTINGS_KEY])
     except KeyError:
         settings = application.settings[SETTINGS_KEY] = ContentSettings()
@@ -203,7 +203,8 @@ def get_settings(
 
     """
     try:
-        return typing.cast(ContentSettings, application.settings[SETTINGS_KEY])
+        return typing.cast('ContentSettings',
+                           application.settings[SETTINGS_KEY])
     except KeyError:
         if not force_instance:
             return None

@@ -81,7 +81,7 @@ class JSONTranscoder(handlers.TextContentHandler):
 
     def loads(self, str_repr: str) -> type_info.Deserialized:
         """Transform :class:`str` into an :class:`object` instance."""
-        return typing.cast(type_info.Deserialized,
+        return typing.cast('type_info.Deserialized',
                            json.loads(str_repr, **self.load_options))
 
     def dump_object(self, obj: type_info.Serializable) -> str:
@@ -115,7 +115,7 @@ class JSONTranscoder(handlers.TextContentHandler):
         if isinstance(obj, uuid.UUID):
             return str(obj)
         if hasattr(obj, 'isoformat'):
-            return typing.cast(type_info.DefinesIsoFormat, obj).isoformat()
+            return typing.cast('type_info.DefinesIsoFormat', obj).isoformat()
         if isinstance(obj, (bytes, bytearray, memoryview)):
             return base64.b64encode(obj).decode('ASCII')
         raise TypeError('{!r} is not JSON serializable'.format(obj))
@@ -233,7 +233,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
             datum = datum.tobytes()
 
         if hasattr(datum, 'isoformat'):
-            datum = typing.cast(type_info.DefinesIsoFormat, datum).isoformat()
+            datum = typing.cast('type_info.DefinesIsoFormat',
+                                datum).isoformat()
 
         if isinstance(datum, (bytes, str)):
             return datum
