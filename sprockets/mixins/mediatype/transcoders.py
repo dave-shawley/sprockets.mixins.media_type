@@ -136,7 +136,7 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
     .. _msgpack format: http://msgpack.org/index.html
 
     """
-    PACKABLE_TYPES = (bool, int, float)
+    PACKABLE_TYPES = (bool, int, float, type(None))
 
     def __init__(self, content_type: str = 'application/msgpack') -> None:
         if umsgpack is None:
@@ -217,9 +217,6 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
            0b8f5ac67cdd130f4d4d4fe6afb839b989fdb86a/spec.md#bin-format-family
 
         """
-        if datum is None:
-            return datum
-
         if isinstance(datum, self.PACKABLE_TYPES):
             return datum
 
