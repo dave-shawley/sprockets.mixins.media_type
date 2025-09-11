@@ -331,7 +331,7 @@ class FormUrlEncodedTranscoder:
     """
     content_type = 'application/x-www-formurlencoded'
 
-    def __init__(self, **encoding_options: typing.Any) -> None:
+    def __init__(self, **encoding_options: typing.Any) -> None:  # noqa: ANN401
         self.options = FormUrlEncodingOptions(**encoding_options)
 
     def to_bytes(

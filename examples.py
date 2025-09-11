@@ -14,7 +14,9 @@ class SimpleHandler(content.ContentMixin, web.RequestHandler):
         self.send_response(body)
 
 
-def make_application(**settings: typing.Any) -> web.Application:
+def make_application(
+        **settings: typing.Any,  # noqa: ANN401
+) -> web.Application:
     application = web.Application([('/', SimpleHandler)], **settings)
     content.set_default_content_type(application,
                                      'application/json',
@@ -24,7 +26,7 @@ def make_application(**settings: typing.Any) -> web.Application:
     return application
 
 
-def _signal_handler(signo: int, _: typing.Any) -> None:
+def _signal_handler(signo: int, _: object) -> None:
     logger = logging.getLogger('signal_handler')
     logger.info('received signal %d, stopping application', signo)
     iol = ioloop.IOLoop.instance()
