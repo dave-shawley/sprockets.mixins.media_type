@@ -106,7 +106,12 @@ select = [
   "T10",
   "T20",
   "TC",
+  "TRY",
   "W",
+]
+ignore = [
+  "TRY003", # messages in exception initializers are okay
+  "TRY400", # logging.exception is not always preferrable
 ]
 flake8-quotes = { inline-quotes = "single" }
 
