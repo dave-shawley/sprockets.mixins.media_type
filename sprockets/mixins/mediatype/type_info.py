@@ -14,6 +14,7 @@ except ImportError:
 @runtime_checkable
 class DefinesIsoFormat(Protocol):
     """An object that has an isoformat method."""
+
     def isoformat(self) -> str:
         """Return the date/time in ISO-8601 format."""
         ...
@@ -21,17 +22,39 @@ class DefinesIsoFormat(Protocol):
 
 class HasSettings(Protocol):
     """Something that quacks like a tornado.web.Application."""
+
     settings: typing.Dict[str, typing.Any]
     """Application settings."""
 
 
-SerializablePrimitives = (type(None), bool, bytearray, bytes, float, int,
-                          memoryview, str, uuid.UUID)
+SerializablePrimitives = (
+    type(None),
+    bool,
+    bytearray,
+    bytes,
+    float,
+    int,
+    memoryview,
+    str,
+    uuid.UUID,
+)
 """Use this with isinstance to identify simple values."""
 
-Serializable = typing.Union[DefinesIsoFormat, None, bool, bytearray, bytes,
-                            float, int, memoryview, str, typing.Mapping,
-                            typing.Sequence, typing.Set, uuid.UUID]
+Serializable = typing.Union[
+    DefinesIsoFormat,
+    None,
+    bool,
+    bytearray,
+    bytes,
+    float,
+    int,
+    memoryview,
+    str,
+    typing.Mapping,
+    typing.Sequence,
+    typing.Set,
+    uuid.UUID,
+]
 """Types that can be serialized by this library.
 
 This is the set of types that
@@ -61,9 +84,16 @@ DumpSFunction = typing.Callable[[Serializable], str]
 LoadSFunction = typing.Callable[[str], Deserialized]
 """Signature of a text content handler's deserialization hook."""
 
-MsgPackable = typing.Union[None, bool, bytes, typing.Dict[typing.Any,
-                                                          typing.Any], float,
-                           int, typing.List[typing.Any], str]
+MsgPackable = typing.Union[
+    None,
+    bool,
+    bytes,
+    typing.Dict[typing.Any, typing.Any],
+    float,
+    int,
+    typing.List[typing.Any],
+    str,
+]
 """Set of types that the underlying msgpack library can serialize."""
 
 
@@ -79,12 +109,13 @@ class Transcoder(Protocol):
     (:meth:`~sprockets.mixins.mediatype.content.ContentMixin.send_response`)
 
     """
+
     content_type: str
     """Canonical content type that this transcoder implements."""
+
     def to_bytes(
-            self,
-            inst_data: Serializable,
-            encoding: typing.Optional[str] = None) -> typing.Tuple[str, bytes]:
+        self, inst_data: Serializable, encoding: typing.Optional[str] = None
+    ) -> typing.Tuple[str, bytes]:
         """Serialize `inst_data` into a byte stream and content type spec.
 
         :param inst_data: the data to serialize
@@ -99,9 +130,9 @@ class Transcoder(Protocol):
         """
         ...
 
-    def from_bytes(self,
-                   data_bytes: bytes,
-                   encoding: typing.Optional[str] = None) -> Deserialized:
+    def from_bytes(
+        self, data_bytes: bytes, encoding: typing.Optional[str] = None
+    ) -> Deserialized:
         """Deserialize `bytes` into a Python object instance.
 
         :param data_bytes: byte string to deserialize

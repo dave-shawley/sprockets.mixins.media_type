@@ -34,13 +34,12 @@ Source = "https://github.com/sprockets/sprockets.mixins.mediatype"
 
 [project.optional-dependencies]
 msgpack = ["u-msgpack-python>=2.5.0,<3"]
-ci = ["coverage[toml]>7.10", "mypy==0.910", "ruff>=0.12.11,<0.13", "yapf==0.31.0"]
+ci = ["coverage[toml]>7.10", "mypy==0.910", "ruff>=0.12.11,<0.13"]
 dev = [
   "coverage>=7.10",
   "mypy==0.910",
   "pre-commit==4.3.0",
   "ruff>=0.12.11,<0.13",
-  "yapf==0.31.0",
   "sphinx>=7.4,<9",
   "sphinx-rtd-theme>=3.0.2,<4",
   "sphinxcontrib-httpdomain>=1.8.1,<2",
@@ -63,9 +62,6 @@ source = ["sprockets"]
 fail_under = 100
 show_missing = true
 
-[tool.yapf]
-allow_split_before_dict_value = false
-
 [tool.mypy]
 mypy_path = "typestubs"
 show_error_codes = true
@@ -74,6 +70,9 @@ strict = true
 [tool.ruff]
 line-length = 79
 target-version = "py39"
+
+[tool.ruff.format]
+quote-style = 'single'
 
 [tool.ruff.lint]
 select = [

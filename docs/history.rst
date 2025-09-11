@@ -14,6 +14,7 @@ Version History
   the response
 - Remove setuptools, replace with :pep:`517` and hatch_
 - Replace flake8 with ruff
+- Replace yapf with ruff
 
 .. _application/x-www-formurlencoded: https://url.spec.whatwg.org/#application/x-www-form-urlencoded
 .. _hatch: https://hatch.pypa.io/latest/

@@ -51,7 +51,7 @@ sprockets.  Here are a few of them:
 **ruff check sprockets tests.py**
    Run linter over the code and report style violations.
 
-**yapf -ri sprockets tests.py**
+**ruff format sprockets tests.py**
    Inline format the code.  You might want to configure your editor to
    do this for you every time you save.
 

@@ -25,6 +25,7 @@ from sprockets.mixins.mediatype import (
 
 class Context:
     """Super simple class to call setattr on"""
+
     def __init__(self) -> None:
         self.settings = {}
 
@@ -68,52 +69,69 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
         return self.application
 
     def test_that_content_type_default_works(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={'Content-Type': 'application/json'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={'Content-Type': 'application/json'},
+        )
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Content-Type'],
-                         'application/json; charset="utf-8"')
+        self.assertEqual(
+            response.headers['Content-Type'],
+            'application/json; charset="utf-8"',
+        )
 
     def test_that_missing_content_type_uses_default(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={
-                                  'Accept': 'application/xml',
-                                  'Content-Type': 'application/json'
-                              })
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={
+                'Accept': 'application/xml',
+                'Content-Type': 'application/json',
+            },
+        )
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Content-Type'],
-                         'application/json; charset="utf-8"')
+        self.assertEqual(
+            response.headers['Content-Type'],
+            'application/json; charset="utf-8"',
+        )
 
     def test_that_accept_header_is_obeyed(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={
-                                  'Accept': 'application/msgpack',
-                                  'Content-Type': 'application/json'
-                              })
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={
+                'Accept': 'application/msgpack',
+                'Content-Type': 'application/json',
+            },
+        )
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Content-Type'],
-                         'application/msgpack')
+        self.assertEqual(
+            response.headers['Content-Type'], 'application/msgpack'
+        )
 
     def test_that_default_content_type_is_set_on_response(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              body=umsgpack.packb({}),
-                              headers={'Content-Type': 'application/msgpack'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body=umsgpack.packb({}),
+            headers={'Content-Type': 'application/msgpack'},
+        )
         self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Content-Type'],
-                         'application/json; charset="utf-8"')
+        self.assertEqual(
+            response.headers['Content-Type'],
+            'application/json; charset="utf-8"',
+        )
 
     def test_that_vary_header_is_set(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              body=umsgpack.packb({}),
-                              headers={'Content-Type': 'application/msgpack'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body=umsgpack.packb({}),
+            headers={'Content-Type': 'application/msgpack'},
+        )
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Vary'], 'Accept')
 
@@ -121,14 +139,17 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
         content.add_transcoder(
             self._app,
             transcoders.MsgPackTranscoder(content_type='expected/content'),
-            'application/vendor+msgpack')
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={
-                                  'Accept': 'application/vendor+msgpack',
-                                  'Content-Type': 'application/json'
-                              })
+            'application/vendor+msgpack',
+        )
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={
+                'Accept': 'application/vendor+msgpack',
+                'Content-Type': 'application/json',
+            },
+        )
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'], 'expected/content')
 
@@ -139,22 +160,26 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
         settings = content.get_settings(self.application, force_instance=True)
         settings.default_content_type = None
         settings.default_encoding = None
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={
-                                  'Accept': 'application/xml',
-                                  'Content-Type': 'application/json',
-                              })
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={
+                'Accept': 'application/xml',
+                'Content-Type': 'application/json',
+            },
+        )
         self.assertEqual(response.code, 406)
 
     def test_misconfigured_default_content_type(self) -> None:
         settings = content.get_settings(self.application, force_instance=True)
         settings.default_content_type = 'application/xml'
-        response = self.fetch('/',
-                              method='POST',
-                              body='{}',
-                              headers={'Content-Type': 'application/json'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{}',
+            headers={'Content-Type': 'application/json'},
+        )
         self.assertEqual(response.code, 500)
 
     def test_that_response_content_type_can_be_set(self) -> None:
@@ -166,8 +191,9 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
         self.application.add_handlers(r'.*', [web.url(r'/foo', FooGenerator)])
         response = self.fetch('/foo')
         self.assertEqual(200, response.code)
-        self.assertEqual('application/foo+json',
-                         response.headers.get('Content-Type'))
+        self.assertEqual(
+            'application/foo+json', response.headers.get('Content-Type')
+        )
 
     def test_that_transcoder_failures_result_in_500(self) -> None:
         class FailingTranscoder:
@@ -176,14 +202,14 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
             def __init__(self) -> None:
                 self.exc_class = TypeError
 
-            def to_bytes(self,
-                         inst_data: object,
-                         encoding: object = None) -> typing.NoReturn:
+            def to_bytes(
+                self, inst_data: object, encoding: object = None
+            ) -> typing.NoReturn:
                 raise self.exc_class('I always fail at this')
 
-            def from_bytes(self,
-                           data_bytes: bytes,
-                           encoding: object = None) -> dict[str, object]:
+            def from_bytes(
+                self, data_bytes: bytes, encoding: object = None
+            ) -> dict[str, object]:
                 return {}
 
         transcoder = FailingTranscoder()
@@ -213,20 +239,26 @@ class GetRequestBodyTests(testing.AsyncHTTPTestCase):
         return self.app
 
     def test_that_request_with_unhandled_type_results_in_415(self) -> None:
-        response = self.fetch('/',
-                              method='POST',
-                              headers={'Content-Type': 'application/xml'},
-                              body=('<request><name>value</name>'
-                                    '<embedded><utf8>\u2731</utf8></embedded>'
-                                    '</request>').encode('utf-8'))
+        response = self.fetch(
+            '/',
+            method='POST',
+            headers={'Content-Type': 'application/xml'},
+            body=(
+                '<request><name>value</name>'
+                '<embedded><utf8>\u2731</utf8></embedded>'
+                '</request>'
+            ).encode('utf-8'),
+        )
         self.assertEqual(response.code, 415)
 
     def test_that_msgpack_request_returns_default_type(self) -> None:
         body = {'name': 'value', 'embedded': {'utf8': '\u2731'}}
-        response = self.fetch('/',
-                              method='POST',
-                              body=umsgpack.packb(body),
-                              headers={'Content-Type': 'application/msgpack'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body=umsgpack.packb(body),
+            headers={'Content-Type': 'application/msgpack'},
+        )
         self.assertEqual(response.code, 200)
         self.assertEqual(json.loads(response.body.decode('utf-8')), body)
 
@@ -235,29 +267,36 @@ class GetRequestBodyTests(testing.AsyncHTTPTestCase):
             '/',
             method='POST',
             headers={'Content-Type': 'application/json'},
-            body=('<?xml version="1.0"?><methodCall><methodName>echo'
-                  '</methodName><params><param><value><str>Hi</str></value>'
-                  '</param></params></methodCall>').encode('utf-8'))
+            body=(
+                '<?xml version="1.0"?><methodCall><methodName>echo'
+                '</methodName><params><param><value><str>Hi</str></value>'
+                '</param></params></methodCall>'
+            ).encode('utf-8'),
+        )
         self.assertEqual(response.code, 400)
 
     def test_that_content_type_suffix_is_handled(self) -> None:
-        content.add_transcoder(self._app, transcoders.JSONTranscoder(),
-                               'application/vendor+json')
+        content.add_transcoder(
+            self._app, transcoders.JSONTranscoder(), 'application/vendor+json'
+        )
         body = {'hello': 'world'}
         response = self.fetch(
             '/',
             method='POST',
             body=json.dumps(body),
-            headers={'Content-Type': 'application/vendor+json'})
+            headers={'Content-Type': 'application/vendor+json'},
+        )
         self.assertEqual(response.code, 200)
         self.assertEqual(json.loads(response.body.decode()), body)
 
     def test_that_invalid_content_types_result_in_bad_request(self) -> None:
         content.set_default_content_type(self.app, None, None)
-        response = self.fetch('/',
-                              method='POST',
-                              body='{"hi":"there"}',
-                              headers={'Content-Type': 'application-json'})
+        response = self.fetch(
+            '/',
+            method='POST',
+            body='{"hi":"there"}',
+            headers={'Content-Type': 'application-json'},
+        )
         self.assertEqual(response.code, 400)
 
 
@@ -285,9 +324,9 @@ class MixinCacheTests(unittest.TestCase):
 
     def test_that_best_response_type_is_cached(self) -> None:
         with unittest.mock.patch(
-                'sprockets.mixins.mediatype.content.algorithms.'
-                'select_content_type',
-                side_effect=algorithms.select_content_type
+            'sprockets.mixins.mediatype.content.algorithms.'
+            'select_content_type',
+            side_effect=algorithms.select_content_type,
         ) as select_content_type:
             first = self.handler.get_response_content_type()
             second = self.handler.get_response_content_type()
@@ -297,7 +336,8 @@ class MixinCacheTests(unittest.TestCase):
 
     def test_that_request_body_is_cached(self) -> None:
         self.transcoder.from_bytes = unittest.mock.Mock(
-            wraps=self.transcoder.from_bytes)
+            wraps=self.transcoder.from_bytes
+        )
         first = self.handler.get_request_body()
         second = self.handler.get_request_body()
         self.assertIs(first, second)
@@ -317,27 +357,31 @@ class JSONTranscoderTests(unittest.TestCase):
     def test_that_datetimes_are_dumped_in_isoformat(self) -> None:
         obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
         dumped = self.transcoder.dumps(obj)
-        self.assertEqual(dumped.replace(' ', ''),
-                         '{"now":"%s"}' % obj['now'].isoformat())
+        self.assertEqual(
+            dumped.replace(' ', ''), '{"now":"%s"}' % obj['now'].isoformat()
+        )
 
     def test_that_tzaware_datetimes_include_tzoffset(self) -> None:
         obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
         self.assertTrue(obj['now'].isoformat().endswith('+00:00'))
         dumped = self.transcoder.dumps(obj)
-        self.assertEqual(dumped.replace(' ', ''),
-                         '{"now":"%s"}' % obj['now'].isoformat())
+        self.assertEqual(
+            dumped.replace(' ', ''), '{"now":"%s"}' % obj['now'].isoformat()
+        )
 
     def test_that_bytearrays_are_base64_encoded(self) -> None:
         payload = bytearray(os.urandom(127))
         dumped = self.transcoder.dumps({'bin': payload})
         self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII'))
+            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII')
+        )
 
     def test_that_memoryviews_are_base64_encoded(self) -> None:
         payload = memoryview(os.urandom(127))
         dumped = self.transcoder.dumps({'bin': payload})
         self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII'))
+            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII')
+        )
 
     def test_that_unhandled_objects_raise_type_error(self) -> None:
         with self.assertRaises(TypeError):
@@ -349,10 +393,12 @@ class ContentSettingsTests(unittest.TestCase):
         settings = content.ContentSettings()
         settings['application/json'] = object()
         self.assertEqual(len(settings.available_content_types), 1)
-        self.assertEqual(settings.available_content_types[0].content_type,
-                         'application')
-        self.assertEqual(settings.available_content_types[0].content_subtype,
-                         'json')
+        self.assertEqual(
+            settings.available_content_types[0].content_type, 'application'
+        )
+        self.assertEqual(
+            settings.available_content_types[0].content_subtype, 'json'
+        )
 
     def test_that_handler_is_not_overwritten(self) -> None:
         settings = content.ContentSettings()
@@ -364,20 +410,25 @@ class ContentSettingsTests(unittest.TestCase):
         settings = content.ContentSettings()
         handler = object()
         settings['application/json; VerSion=foo; type=WhatEver'] = handler
-        self.assertIs(settings['application/json; type=whatever; version=foo'],
-                      handler)
-        self.assertIn('application/json; type=whatever; version=foo',
-                      (str(c) for c in settings.available_content_types))
+        self.assertIs(
+            settings['application/json; type=whatever; version=foo'], handler
+        )
+        self.assertIn(
+            'application/json; type=whatever; version=foo',
+            (str(c) for c in settings.available_content_types),
+        )
 
     def test_that_normalized_content_types_do_not_overwrite(self) -> None:
         settings = content.ContentSettings()
         settings['application/json; charset=UTF-8'] = handler = object()
         settings['application/json; charset=utf-8'] = object()
         self.assertEqual(len(settings.available_content_types), 1)
-        self.assertEqual(settings.available_content_types[0].content_type,
-                         'application')
-        self.assertEqual(settings.available_content_types[0].content_subtype,
-                         'json')
+        self.assertEqual(
+            settings.available_content_types[0].content_type, 'application'
+        )
+        self.assertEqual(
+            settings.available_content_types[0].content_subtype, 'json'
+        )
         self.assertEqual(settings['application/json; charset=utf-8'], handler)
 
     def test_that_setting_no_default_content_type_warns(self) -> None:
@@ -393,9 +444,12 @@ class ContentFunctionTests(unittest.TestCase):
 
     def test_that_add_binary_content_type_creates_binary_handler(self) -> None:
         settings = content.install(self.context, 'application/octet-stream')
-        content.add_binary_content_type(self.context,
-                                        'application/vnd.python.pickle',
-                                        pickle.dumps, pickle.loads)
+        content.add_binary_content_type(
+            self.context,
+            'application/vnd.python.pickle',
+            pickle.dumps,
+            pickle.loads,
+        )
         transcoder = settings['application/vnd.python.pickle']
         self.assertIsInstance(transcoder, handlers.BinaryContentHandler)
         self.assertIs(transcoder._pack, pickle.dumps)
@@ -403,19 +457,25 @@ class ContentFunctionTests(unittest.TestCase):
 
     def test_that_add_text_content_type_creates_text_handler(self) -> None:
         settings = content.install(self.context, 'application/json')
-        content.add_text_content_type(self.context, 'application/json', 'utf8',
-                                      json.dumps, json.loads)
+        content.add_text_content_type(
+            self.context, 'application/json', 'utf8', json.dumps, json.loads
+        )
         transcoder = settings['application/json']
         self.assertIsInstance(transcoder, handlers.TextContentHandler)
         self.assertIs(transcoder._dumps, json.dumps)
         self.assertIs(transcoder._loads, json.loads)
 
     def test_that_add_text_content_type_discards_charset_parameter(
-            self) -> None:
+        self,
+    ) -> None:
         settings = content.install(self.context, 'application/json', 'utf-8')
-        content.add_text_content_type(self.context,
-                                      'application/json;charset=UTF-8', 'utf8',
-                                      json.dumps, json.loads)
+        content.add_text_content_type(
+            self.context,
+            'application/json;charset=UTF-8',
+            'utf8',
+            json.dumps,
+            json.loads,
+        )
         transcoder = settings['application/json']
         self.assertIsInstance(transcoder, handlers.TextContentHandler)
 
@@ -451,29 +511,34 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(dumped, pack_string('foo'))
 
     def test_that_none_is_packed_as_nil_byte(self) -> None:
-        self.assertEqual(self.transcoder.packb(None), b'\xC0')
+        self.assertEqual(self.transcoder.packb(None), b'\xc0')
 
     def test_that_bools_are_dumped_appropriately(self) -> None:
-        self.assertEqual(self.transcoder.packb(False), b'\xC2')
-        self.assertEqual(self.transcoder.packb(True), b'\xC3')
+        self.assertEqual(self.transcoder.packb(False), b'\xc2')
+        self.assertEqual(self.transcoder.packb(True), b'\xc3')
 
     def test_that_ints_are_packed_appropriately(self) -> None:
-        self.assertEqual(self.transcoder.packb((2**7) - 1), b'\x7F')
-        self.assertEqual(self.transcoder.packb(2**7), b'\xCC\x80')
-        self.assertEqual(self.transcoder.packb(2**8), b'\xCD\x01\x00')
-        self.assertEqual(self.transcoder.packb(2**16), b'\xCE\x00\x01\x00\x00')
-        self.assertEqual(self.transcoder.packb(2**32),
-                         b'\xCF\x00\x00\x00\x01\x00\x00\x00\x00')
+        self.assertEqual(self.transcoder.packb((2**7) - 1), b'\x7f')
+        self.assertEqual(self.transcoder.packb(2**7), b'\xcc\x80')
+        self.assertEqual(self.transcoder.packb(2**8), b'\xcd\x01\x00')
+        self.assertEqual(self.transcoder.packb(2**16), b'\xce\x00\x01\x00\x00')
+        self.assertEqual(
+            self.transcoder.packb(2**32),
+            b'\xcf\x00\x00\x00\x01\x00\x00\x00\x00',
+        )
 
     def test_that_negative_ints_are_packed_accordingly(self) -> None:
-        self.assertEqual(self.transcoder.packb(-(2**0)), b'\xFF')
-        self.assertEqual(self.transcoder.packb(-(2**5)), b'\xE0')
-        self.assertEqual(self.transcoder.packb(-(2**7)), b'\xD0\x80')
-        self.assertEqual(self.transcoder.packb(-(2**15)), b'\xD1\x80\x00')
-        self.assertEqual(self.transcoder.packb(-(2**31)),
-                         b'\xD2\x80\x00\x00\x00')
-        self.assertEqual(self.transcoder.packb(-(2**63)),
-                         b'\xD3\x80\x00\x00\x00\x00\x00\x00\x00')
+        self.assertEqual(self.transcoder.packb(-(2**0)), b'\xff')
+        self.assertEqual(self.transcoder.packb(-(2**5)), b'\xe0')
+        self.assertEqual(self.transcoder.packb(-(2**7)), b'\xd0\x80')
+        self.assertEqual(self.transcoder.packb(-(2**15)), b'\xd1\x80\x00')
+        self.assertEqual(
+            self.transcoder.packb(-(2**31)), b'\xd2\x80\x00\x00\x00'
+        )
+        self.assertEqual(
+            self.transcoder.packb(-(2**63)),
+            b'\xd3\x80\x00\x00\x00\x00\x00\x00\x00',
+        )
 
     def test_that_lists_are_treated_as_arrays(self) -> None:
         dumped = self.transcoder.packb([])
@@ -540,13 +605,18 @@ class MsgPackTranscoderTests(unittest.TestCase):
     def test_that_dicts_are_sent_as_maps(self) -> None:
         data = {'compact': True, 'schema': 0}
         dumped = self.transcoder.packb(data)
-        self.assertEqual(b'\x82\xA7compact\xC3\xA6schema\x00', dumped)
+        self.assertEqual(b'\x82\xa7compact\xc3\xa6schema\x00', dumped)
 
     def test_that_transcoder_creation_fails_if_umsgpack_is_missing(
-            self) -> None:
-        with unittest.mock.patch(
+        self,
+    ) -> None:
+        with (
+            unittest.mock.patch(
                 'sprockets.mixins.mediatype.transcoders.umsgpack',
-                new_callable=lambda: None), self.assertRaises(RuntimeError):
+                new_callable=lambda: None,
+            ),
+            self.assertRaises(RuntimeError),
+        ):
             transcoders.MsgPackTranscoder()
 
 
@@ -581,43 +651,53 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual({'repeated': '2'}, body)
 
     def test_that_deserialization_encoding_can_be_overridden(self) -> None:
-        body = self.transcoder.from_bytes(b'kolor=%bf%F3%b3ty',
-                                          encoding='iso-8859-2')
+        body = self.transcoder.from_bytes(
+            b'kolor=%bf%F3%b3ty', encoding='iso-8859-2'
+        )
         self.assertEqual({'kolor': 'żółty'}, body)
 
     def test_simple_serialization(self) -> None:
         now = datetime.datetime.now(datetime.timezone.utc)
         id_val = uuid.uuid4()
-        content_type, result = self.transcoder.to_bytes({
-            'integer': 12,
-            'float': math.pi,
-            'string': 'percent quoted',
-            'datetime': now,
-            'id': id_val,
-        })
+        content_type, result = self.transcoder.to_bytes(
+            {
+                'integer': 12,
+                'float': math.pi,
+                'string': 'percent quoted',
+                'datetime': now,
+                'id': id_val,
+            }
+        )
         self.assertEqual(content_type, 'application/x-www-formurlencoded')
         self.assertEqual(
-            result.decode(), '&'.join([
-                'integer=12',
-                f'float={math.pi}',
-                'string=percent%20quoted',
-                'datetime=' + urllib.parse.quote(now.isoformat()),
-                f'id={id_val}',
-            ]))
+            result.decode(),
+            '&'.join(
+                [
+                    'integer=12',
+                    f'float={math.pi}',
+                    'string=percent%20quoted',
+                    'datetime=' + urllib.parse.quote(now.isoformat()),
+                    f'id={id_val}',
+                ]
+            ),
+        )
 
     def test_that_serialization_encoding_can_be_overridden(self) -> None:
-        _, result = self.transcoder.to_bytes([('kolor', 'żółty')],
-                                             encoding='iso-8859-2')
+        _, result = self.transcoder.to_bytes(
+            [('kolor', 'żółty')], encoding='iso-8859-2'
+        )
         self.assertEqual(b'kolor=%bf%f3%b3ty', result.lower())
 
     def test_serialization_edge_cases(self) -> None:
-        _, result = self.transcoder.to_bytes([
-            ('', ''),
-            ('', True),
-            ('', False),
-            ('', None),
-            ('name', None),
-        ])
+        _, result = self.transcoder.to_bytes(
+            [
+                ('', ''),
+                ('', True),
+                ('', False),
+                ('', None),
+                ('name', None),
+            ]
+        )
         self.assertEqual(b'=&=true&=false&&name', result)
 
     def test_serialization_using_plusses(self) -> None:
@@ -686,10 +766,16 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
 
         self.transcoder.options.encode_sequences = False
         _, result = self.transcoder.to_bytes(value)
-        self.assertEqual((b'list=%5B1%2C%202%5D&tuple=%281%2C%202%29'
-                          b'&set=%7B1%2C%202%7D&str=val'), result)
+        self.assertEqual(
+            (
+                b'list=%5B1%2C%202%5D&tuple=%281%2C%202%29'
+                b'&set=%7B1%2C%202%7D&str=val'
+            ),
+            result,
+        )
 
         self.transcoder.options.encode_sequences = True
         _, result = self.transcoder.to_bytes(value)
-        self.assertEqual(b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val',
-                         result)
+        self.assertEqual(
+            b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
+        )

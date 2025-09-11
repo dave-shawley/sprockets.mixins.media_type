@@ -15,12 +15,12 @@ class SimpleHandler(content.ContentMixin, web.RequestHandler):
 
 
 def make_application(
-        **settings: typing.Any,  # noqa: ANN401
+    **settings: typing.Any,  # noqa: ANN401
 ) -> web.Application:
     application = web.Application([('/', SimpleHandler)], **settings)
-    content.set_default_content_type(application,
-                                     'application/json',
-                                     encoding='utf-8')
+    content.set_default_content_type(
+        application, 'application/json', encoding='utf-8'
+    )
     content.add_transcoder(application, transcoders.MsgPackTranscoder())
     content.add_transcoder(application, transcoders.JSONTranscoder())
     return application
@@ -34,8 +34,9 @@ def _signal_handler(signo: int, _: object) -> None:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)1.1s - %(name)s: %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(levelname)1.1s - %(name)s: %(message)s'
+    )
     application = make_application(debug=True)
     application.listen(8000)
     signal.signal(signal.SIGINT, _signal_handler)
