@@ -28,7 +28,7 @@ jobs:
           ruff format --diff docs sprockets tests.py
       - name: Typing
         run: |
-          mypy sprockets/mixins/mediatype/ examples.py
+          mypy sprockets/mixins/mediatype/ examples.py tests.py
 
   test:
     runs-on: ubuntu-latest

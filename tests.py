@@ -27,7 +27,7 @@ class Context:
     """Super simple class to call setattr on"""
 
     def __init__(self) -> None:
-        self.settings = {}
+        self.settings: dict[str, object] = {}
 
 
 def pack_string(obj: object) -> bytes:
@@ -57,17 +57,36 @@ def pack_bytes(payload: bytes) -> bytes:
     return prefix + payload
 
 
-class SendResponseTests(testing.AsyncHTTPTestCase):
-    application: typing.Union[None, web.Application]
+T = typing.TypeVar('T')
+
+
+def unwrap_as(cls: type[T], obj: object) -> T:
+    """Unwrap an object as an instance of the given class
+
+    Use this instead of self.assertIsInstance() and mypy will know that
+    the object is of the expected type and not None.
+
+    """
+    if not isinstance(obj, cls):
+        raise AssertionError(  # noqa: TRY004
+            f'expected {cls.__name__}, got {type(obj).__name__}'
+        )
+    return obj
+
+
+class TestCase(testing.AsyncHTTPTestCase):
+    application: web.Application
 
     def setUp(self) -> None:
-        self.application = None
+        self.application = None  # type:ignore[assignment]
         super().setUp()
 
     def get_app(self) -> web.Application:
         self.application = examples.make_application()
         return self.application
 
+
+class SendResponseTests(TestCase):
     def test_that_content_type_default_works(self) -> None:
         response = self.fetch(
             '/',
@@ -200,7 +219,7 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
             content_type = 'application/vnd.com.example.bad'
 
             def __init__(self) -> None:
-                self.exc_class = TypeError
+                self.exc_class: type[Exception] = TypeError
 
             def to_bytes(
                 self, inst_data: object, encoding: object = None
@@ -229,15 +248,7 @@ class SendResponseTests(testing.AsyncHTTPTestCase):
             transcoder.exc_class = ValueError
 
 
-class GetRequestBodyTests(testing.AsyncHTTPTestCase):
-    def setUp(self) -> None:
-        self.app = None
-        super().setUp()
-
-    def get_app(self) -> web.Application:
-        self.app = examples.make_application()
-        return self.app
-
+class GetRequestBodyTests(TestCase):
     def test_that_request_with_unhandled_type_results_in_415(self) -> None:
         response = self.fetch(
             '/',
@@ -290,7 +301,7 @@ class GetRequestBodyTests(testing.AsyncHTTPTestCase):
         self.assertEqual(json.loads(response.body.decode()), body)
 
     def test_that_invalid_content_types_result_in_bad_request(self) -> None:
-        content.set_default_content_type(self.app, None, None)
+        content.set_default_content_type(self.application, None, None)  # type: ignore[arg-type]
         response = self.fetch(
             '/',
             method='POST',
@@ -335,7 +346,7 @@ class MixinCacheTests(unittest.TestCase):
             self.assertEqual(1, select_content_type.call_count)
 
     def test_that_request_body_is_cached(self) -> None:
-        self.transcoder.from_bytes = unittest.mock.Mock(
+        self.transcoder.from_bytes = unittest.mock.Mock(  # type: ignore[assignment]
             wraps=self.transcoder.from_bytes
         )
         first = self.handler.get_request_body()
@@ -385,13 +396,13 @@ class JSONTranscoderTests(unittest.TestCase):
 
     def test_that_unhandled_objects_raise_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            self.transcoder.dumps(object())
+            self.transcoder.dumps(object())  # type: ignore[arg-type]
 
 
 class ContentSettingsTests(unittest.TestCase):
     def test_that_handler_listed_in_available_content_types(self) -> None:
         settings = content.ContentSettings()
-        settings['application/json'] = object()
+        settings['application/json'] = unittest.mock.Mock()
         self.assertEqual(len(settings.available_content_types), 1)
         self.assertEqual(
             settings.available_content_types[0].content_type, 'application'
@@ -402,13 +413,14 @@ class ContentSettingsTests(unittest.TestCase):
 
     def test_that_handler_is_not_overwritten(self) -> None:
         settings = content.ContentSettings()
-        settings['application/json'] = handler = object()
-        settings['application/json'] = object()
+        handler = unittest.mock.Mock()
+        settings['application/json'] = handler
+        settings['application/json'] = unittest.mock.Mock()
         self.assertIs(settings.get('application/json'), handler)
 
     def test_that_registered_content_types_are_normalized(self) -> None:
         settings = content.ContentSettings()
-        handler = object()
+        handler = unittest.mock.Mock()
         settings['application/json; VerSion=foo; type=WhatEver'] = handler
         self.assertIs(
             settings['application/json; type=whatever; version=foo'], handler
@@ -420,8 +432,9 @@ class ContentSettingsTests(unittest.TestCase):
 
     def test_that_normalized_content_types_do_not_overwrite(self) -> None:
         settings = content.ContentSettings()
-        settings['application/json; charset=UTF-8'] = handler = object()
-        settings['application/json; charset=utf-8'] = object()
+        handler = unittest.mock.Mock()
+        settings['application/json; charset=UTF-8'] = handler
+        settings['application/json; charset=utf-8'] = unittest.mock.Mock()
         self.assertEqual(len(settings.available_content_types), 1)
         self.assertEqual(
             settings.available_content_types[0].content_type, 'application'
@@ -450,8 +463,10 @@ class ContentFunctionTests(unittest.TestCase):
             pickle.dumps,
             pickle.loads,
         )
-        transcoder = settings['application/vnd.python.pickle']
-        self.assertIsInstance(transcoder, handlers.BinaryContentHandler)
+        transcoder = unwrap_as(
+            handlers.BinaryContentHandler,
+            settings['application/vnd.python.pickle'],
+        )
         self.assertIs(transcoder._pack, pickle.dumps)
         self.assertIs(transcoder._unpack, pickle.loads)
 
@@ -460,8 +475,9 @@ class ContentFunctionTests(unittest.TestCase):
         content.add_text_content_type(
             self.context, 'application/json', 'utf8', json.dumps, json.loads
         )
-        transcoder = settings['application/json']
-        self.assertIsInstance(transcoder, handlers.TextContentHandler)
+        transcoder = unwrap_as(
+            handlers.TextContentHandler, settings['application/json']
+        )
         self.assertIs(transcoder._dumps, json.dumps)
         self.assertIs(transcoder._loads, json.loads)
 
@@ -557,7 +573,7 @@ class MsgPackTranscoderTests(unittest.TestCase):
 
     def test_that_unhandled_objects_raise_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            self.transcoder.packb(object())
+            self.transcoder.packb(object())  # type: ignore[arg-type]
 
     def test_that_uuids_are_dumped_as_strings(self) -> None:
         uid = uuid.uuid4()
@@ -628,14 +644,17 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.transcoder = transcoders.FormUrlEncodedTranscoder()
 
     def test_simple_deserialization(self) -> None:
-        body = self.transcoder.from_bytes(
-            b'number=12&boolean=true&null=null&string=anything%20really&empty='
+        body = typing.cast(
+            'dict[str, object]',
+            self.transcoder.from_bytes(
+                b'number=12&boolean=true&null=null&string=any%20thing&empty='
+            ),
         )
         self.assertEqual(body['number'], '12')
         self.assertEqual(body['boolean'], 'true')
         self.assertEqual(body['empty'], '')
         self.assertEqual(body['null'], 'null')
-        self.assertEqual(body['string'], 'anything really')
+        self.assertEqual(body['string'], 'any thing')
 
     def test_deserialization_edge_cases(self) -> None:
         body = self.transcoder.from_bytes(b'')
@@ -701,14 +720,16 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual(b'=&=true&=false&&name', result)
 
     def test_serialization_using_plusses(self) -> None:
-        self.transcoder: transcoders.FormUrlEncodedTranscoder
+        transcoder = unwrap_as(
+            transcoders.FormUrlEncodedTranscoder, self.transcoder
+        )
 
-        self.transcoder.options.space_as_plus = True
-        _, result = self.transcoder.to_bytes({'value': 'with space'})
+        transcoder.options.space_as_plus = True
+        _, result = transcoder.to_bytes({'value': 'with space'})
         self.assertEqual(b'value=with+space', result)
 
-        self.transcoder.options.space_as_plus = False
-        _, result = self.transcoder.to_bytes({'value': 'with space'})
+        transcoder.options.space_as_plus = False
+        _, result = transcoder.to_bytes({'value': 'with space'})
         self.assertEqual(b'value=with%20space', result)
 
     def test_that_serializing_unsupported_types_stringifies(self) -> None:
@@ -731,9 +752,9 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
 
         test_string = ''.join(pct_chrs)
         expected = ''.join('%{:02X}'.format(ord(c)) for c in test_string)
-        expected = f'test_string={expected}'.encode()
+        expected = f'test_string={expected}'
         _, result = self.transcoder.to_bytes({'test_string': test_string})
-        self.assertEqual(expected, result)
+        self.assertEqual(expected.encode(), result)
 
     def test_serialization_of_primitives(self) -> None:
         id_val = uuid.uuid4()
@@ -753,19 +774,22 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
             self.assertEqual(expected, result)
 
     def test_serialization_with_empty_literal_map(self) -> None:
-        self.transcoder: transcoders.FormUrlEncodedTranscoder
-        self.transcoder.options.literal_mapping.clear()
+        transcoder = unwrap_as(
+            transcoders.FormUrlEncodedTranscoder, self.transcoder
+        )
+        transcoder.options.literal_mapping.clear()
         for value in (None, True, False):
             _, result = self.transcoder.to_bytes(value)
             self.assertEqual(str(value).encode(), result)
 
     def test_serialization_of_sequences(self) -> None:
-        self.transcoder: transcoders.FormUrlEncodedTranscoder
-
         value = {'list': [1, 2], 'tuple': (1, 2), 'set': {1, 2}, 'str': 'val'}
 
-        self.transcoder.options.encode_sequences = False
-        _, result = self.transcoder.to_bytes(value)
+        transcoder = unwrap_as(
+            transcoders.FormUrlEncodedTranscoder, self.transcoder
+        )
+        transcoder.options.encode_sequences = False
+        _, result = transcoder.to_bytes(value)
         self.assertEqual(
             (
                 b'list=%5B1%2C%202%5D&tuple=%281%2C%202%29'
@@ -774,8 +798,8 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
             result,
         )
 
-        self.transcoder.options.encode_sequences = True
-        _, result = self.transcoder.to_bytes(value)
+        transcoder.options.encode_sequences = True
+        _, result = transcoder.to_bytes(value)
         self.assertEqual(
             b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
         )
