@@ -2,8 +2,9 @@ import logging
 import signal
 import typing
 
-from sprockets.mixins.mediatype import content, transcoders
 from tornado import ioloop, web
+
+from sprockets.mixins.mediatype import content, transcoders
 
 
 class SimpleHandler(content.ContentMixin, web.RequestHandler):
@@ -13,25 +14,29 @@ class SimpleHandler(content.ContentMixin, web.RequestHandler):
         self.send_response(body)
 
 
-def make_application(**settings: typing.Any) -> web.Application:
+def make_application(
+    **settings: typing.Any,  # noqa: ANN401
+) -> web.Application:
     application = web.Application([('/', SimpleHandler)], **settings)
-    content.set_default_content_type(application,
-                                     'application/json',
-                                     encoding='utf-8')
+    content.set_default_content_type(
+        application, 'application/json', encoding='utf-8'
+    )
     content.add_transcoder(application, transcoders.MsgPackTranscoder())
     content.add_transcoder(application, transcoders.JSONTranscoder())
     return application
 
 
-def _signal_handler(signo: int, _: typing.Any) -> None:
-    logging.info('received signal %d, stopping application', signo)
+def _signal_handler(signo: int, _: object) -> None:
+    logger = logging.getLogger('signal_handler')
+    logger.info('received signal %d, stopping application', signo)
     iol = ioloop.IOLoop.instance()
     iol.add_callback_from_signal(iol.stop)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)1.1s - %(name)s: %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(levelname)1.1s - %(name)s: %(message)s'
+    )
     application = make_application(debug=True)
     application.listen(8000)
     signal.signal(signal.SIGINT, _signal_handler)

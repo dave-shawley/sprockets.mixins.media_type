@@ -12,29 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up python 3.9
+      - name: Set up python 3.12
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: 3.12
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip setuptools
+          python -m pip install --upgrade pip
           python -m pip install '.[ci]'
-      - name: Flake8
+      - name: lint
         run: |
-          flake8 sprockets tests.py
+          ruff check sprockets tests.py
       - name: Formatting
         run: |
-          yapf -pqr docs setup.py sprockets tests.py
+          ruff format --diff docs sprockets tests.py
       - name: Typing
         run: |
-          mypy sprockets/mixins/mediatype/ examples.py
+          mypy sprockets/mixins/mediatype/ examples.py tests.py
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.9, 3.12, 3.13]
     steps:
       - uses: actions/checkout@v2
       - name: Set up python ${{ matrix.python-version }}
@@ -43,7 +43,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip setuptools
+          python -m pip install --upgrade pip
           python -m pip install '.[ci]'
           python -m pip install -e '.[msgpack]'
       - name: Run tests
@@ -66,11 +66,11 @@ jobs:
       - name: Set up Read the Docs compatible python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.12
       - name: Install dependencies
         run: |
           python -m pip install '.[docs]'
           python -m pip install .
       - name: Build documentation
         run: |
-          ./setup.py build_sphinx
+          sphinx-build -b html docs build/sphinx

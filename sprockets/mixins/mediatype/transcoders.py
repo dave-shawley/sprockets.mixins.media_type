@@ -6,17 +6,17 @@ Bundled media type transcoders.
 - :class:`.FormUrlEncodedTranscoder` implements the venerable form encoding
 
 """
+
 from __future__ import annotations
 
 import base64
+import collections.abc
 import dataclasses
 import json
 import string
 import typing
 import urllib.parse
 import uuid
-
-import collections.abc
 
 try:
     import umsgpack
@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover
 
 from sprockets.mixins.mediatype import handlers, type_info
 
-_FORM_URLENCODING = {c: '%{:02X}'.format(c) for c in range(0, 255)}
+_FORM_URLENCODING = {c: '%{:02X}'.format(c) for c in range(255)}
 _FORM_URLENCODING.update({ord(c): c for c in string.ascii_letters})
 _FORM_URLENCODING.update({ord(c): c for c in string.digits})
 _FORM_URLENCODING.update({ord(c): c for c in '*-_.'})
@@ -62,14 +62,18 @@ class JSONTranscoder(handlers.TextContentHandler):
        :meth:`.loads` is called.
 
     """
+
     dump_options: typing.Dict[str, typing.Any]
     load_options: typing.Dict[str, typing.Any]
 
-    def __init__(self,
-                 content_type: str = 'application/json',
-                 default_encoding: str = 'utf-8') -> None:
-        super().__init__(content_type, self.dumps, self.loads,
-                         default_encoding)
+    def __init__(
+        self,
+        content_type: str = 'application/json',
+        default_encoding: str = 'utf-8',
+    ) -> None:
+        super().__init__(
+            content_type, self.dumps, self.loads, default_encoding
+        )
         self.dump_options = {
             'default': self.dump_object,
             'separators': (',', ':'),
@@ -82,8 +86,9 @@ class JSONTranscoder(handlers.TextContentHandler):
 
     def loads(self, str_repr: str) -> type_info.Deserialized:
         """Transform :class:`str` into an :class:`object` instance."""
-        return typing.cast(type_info.Deserialized,
-                           json.loads(str_repr, **self.load_options))
+        return typing.cast(
+            'type_info.Deserialized', json.loads(str_repr, **self.load_options)
+        )
 
     def dump_object(self, obj: type_info.Serializable) -> str:
         """
@@ -116,7 +121,7 @@ class JSONTranscoder(handlers.TextContentHandler):
         if isinstance(obj, uuid.UUID):
             return str(obj)
         if hasattr(obj, 'isoformat'):
-            return typing.cast(type_info.DefinesIsoFormat, obj).isoformat()
+            return typing.cast('type_info.DefinesIsoFormat', obj).isoformat()
         if isinstance(obj, (bytes, bytearray, memoryview)):
             return base64.b64encode(obj).decode('ASCII')
         raise TypeError('{!r} is not JSON serializable'.format(obj))
@@ -137,12 +142,14 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
     .. _msgpack format: http://msgpack.org/index.html
 
     """
-    PACKABLE_TYPES = (bool, int, float)
+
+    PACKABLE_TYPES = (bool, int, float, type(None))
 
     def __init__(self, content_type: str = 'application/msgpack') -> None:
         if umsgpack is None:
-            raise RuntimeError('Cannot import MsgPackTranscoder, '
-                               'umsgpack is not available')
+            raise RuntimeError(
+                'Cannot import MsgPackTranscoder, umsgpack is not available'
+            )
 
         super().__init__(content_type, self.packb, self.unpackb)
 
@@ -155,7 +162,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         return umsgpack.unpackb(data)
 
     def normalize_datum(
-            self, datum: type_info.Serializable) -> type_info.MsgPackable:
+        self, datum: type_info.Serializable
+    ) -> type_info.MsgPackable:
         """
         Convert `datum` into something that umsgpack likes.
 
@@ -218,9 +226,6 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
            0b8f5ac67cdd130f4d4d4fe6afb839b989fdb86a/spec.md#bin-format-family
 
         """
-        if datum is None:
-            return datum
-
         if isinstance(datum, self.PACKABLE_TYPES):
             return datum
 
@@ -234,7 +239,9 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
             datum = datum.tobytes()
 
         if hasattr(datum, 'isoformat'):
-            datum = typing.cast(type_info.DefinesIsoFormat, datum).isoformat()
+            datum = typing.cast(
+                'type_info.DefinesIsoFormat', datum
+            ).isoformat()
 
         if isinstance(datum, (bytes, str)):
             return datum
@@ -248,25 +255,26 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
                 out[k] = self.normalize_datum(v)
             return out
 
-        raise TypeError('{} is not msgpackable'.format(
-            datum.__class__.__name__))
+        raise TypeError(
+            '{} is not msgpackable'.format(datum.__class__.__name__)
+        )
 
 
 @dataclasses.dataclass
 class FormUrlEncodingOptions:
     """Configuration knobs for :class:`.FormUrlEncodedTranscoder`"""
+
     encoding: str = 'utf-8'
     """Encoding use when generating the byte stream from character data."""
 
     encode_sequences: bool = False
     """Encode sequence values as multiple name=value instances."""
 
-    literal_mapping: dict[typing.Literal[None, True, False],
-                          str] = dataclasses.field(default_factory=lambda: {
-                              None: '',
-                              True: 'true',
-                              False: 'false'
-                          })
+    literal_mapping: dict[typing.Literal[None, True, False], str] = (
+        dataclasses.field(
+            default_factory=lambda: {None: '', True: 'true', False: 'false'}
+        )
+    )
     """Mapping from supported literal values to strings."""
 
     space_as_plus: bool = False
@@ -330,15 +338,17 @@ class FormUrlEncodedTranscoder:
        Controls the behavior of the transcoder
 
     """
+
     content_type = 'application/x-www-formurlencoded'
 
-    def __init__(self, **encoding_options: typing.Any) -> None:
+    def __init__(self, **encoding_options: typing.Any) -> None:  # noqa: ANN401
         self.options = FormUrlEncodingOptions(**encoding_options)
 
     def to_bytes(
-            self,
-            inst_data: type_info.Serializable,
-            encoding: typing.Optional[str] = None) -> typing.Tuple[str, bytes]:
+        self,
+        inst_data: type_info.Serializable,
+        encoding: typing.Optional[str] = None,
+    ) -> typing.Tuple[str, bytes]:
         """Serialize `inst_data` into a byte stream and content type spec.
 
         :param inst_data: the data to serialize
@@ -363,8 +373,11 @@ class FormUrlEncodedTranscoder:
         # character encoding if necessary.  Binding these to local
         # names removes branches from the inner loop.
         chr_map: typing.Mapping[int, str]
-        chr_map = (_FORM_URLENCODING_PLUS
-                   if self.options.space_as_plus else _FORM_URLENCODING)
+        chr_map = (
+            _FORM_URLENCODING_PLUS
+            if self.options.space_as_plus
+            else _FORM_URLENCODING
+        )
         if encoding is None:
             encoding = self.options.encoding
 
@@ -391,9 +404,8 @@ class FormUrlEncodedTranscoder:
         return self.content_type, encoded.encode('ascii')
 
     def from_bytes(
-            self,
-            data_bytes: bytes,
-            encoding: typing.Optional[str] = None) -> type_info.Deserialized:
+        self, data_bytes: bytes, encoding: typing.Optional[str] = None
+    ) -> type_info.Deserialized:
         """Deserialize `bytes` into a Python object instance.
 
         :param data_bytes: byte string to deserialize
@@ -410,8 +422,11 @@ class FormUrlEncodedTranscoder:
            #urlencoded-parsing
 
         """
-        dequote = (urllib.parse.unquote_plus
-                   if self.options.space_as_plus else urllib.parse.unquote)
+        dequote = (
+            urllib.parse.unquote_plus
+            if self.options.space_as_plus
+            else urllib.parse.unquote
+        )
         if encoding is None:
             encoding = self.options.encoding
 
@@ -428,16 +443,24 @@ class FormUrlEncodedTranscoder:
 
         return dict(output)
 
-    def _encode(self, datum: typing.Union[bool, None, float, int, str,
-                                          type_info.DefinesIsoFormat],
-                char_map: typing.Mapping[int, str], encoding: str) -> str:
+    def _encode(
+        self,
+        datum: typing.Union[
+            bool, None, float, int, str, type_info.DefinesIsoFormat
+        ],
+        char_map: typing.Mapping[int, str],
+        encoding: str,
+    ) -> str:
         if isinstance(datum, str):
             pass  # optimization: skip additional checks for strings
-        elif (isinstance(datum, (float, int, str, uuid.UUID))
-              and not isinstance(datum, bool)):
+        elif isinstance(
+            datum, (float, int, str, uuid.UUID)
+        ) and not isinstance(datum, bool):
             datum = str(datum)
-        elif (isinstance(datum, collections.abc.Hashable)
-              and datum in self.options.literal_mapping):
+        elif (
+            isinstance(datum, collections.abc.Hashable)
+            and datum in self.options.literal_mapping
+        ):
             # the isinstance Hashable check confuses mypy
             datum = self.options.literal_mapping[datum]  # type: ignore
         elif isinstance(datum, (bytearray, bytes, memoryview)):
@@ -458,16 +481,18 @@ class FormUrlEncodedTranscoder:
         else:
             try:
                 tuples = [(a, b) for a, b in value]  # type: ignore
-            except (TypeError, ValueError):
-                raise TypeError('Cannot convert value to sequence of tuples')
+            except (TypeError, ValueError) as e:
+                raise TypeError(
+                    'Cannot convert value to sequence of tuples'
+                ) from e
 
         if self.options.encode_sequences:
-            out_tuples = []
+            out_tuples: list[typing.Tuple[typing.Any, typing.Any]] = []
             for a, b in tuples:
-                if (not isinstance(b, (bytes, bytearray, memoryview, str))
-                        and isinstance(b, collections.abc.Iterable)):
-                    for value in b:
-                        out_tuples.append((a, value))
+                if not isinstance(
+                    b, (bytes, bytearray, memoryview, str)
+                ) and isinstance(b, collections.abc.Iterable):
+                    out_tuples.extend((a, elm) for elm in b)
                 else:
                     out_tuples.append((a, b))
             tuples = out_tuples

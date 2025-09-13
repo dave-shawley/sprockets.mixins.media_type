@@ -30,25 +30,28 @@ utility to run the suite with coverage calculation enabled::
 You can also run the tox utility to verify the supported Python versions::
 
    $ tox -p auto
-   ✔ OK py37 in 2.636 seconds
-   ✔ OK py38 in 2.661 seconds
    ✔ OK py39 in 2.705 seconds
+   ✔ OK py312 in 2.006 seconds
    _________________________________________________________________________
-     py37: commands succeeded
-     py38: commands succeeded
      py39: commands succeeded
+     py312: commands succeeded
      congratulations :)
 
-For other commands, *setup.py* is the swiss-army knife in your development
-tool chest.  It provides the following commands:
+ You should also install the pre-commit hook to ensure that your code
+ is formatted correctly before you commit::
 
-**./setup.py build_sphinx**
+   $ pre-commit install --install-hooks --overwrite
+
+There are a number of other tools that you can use to help you develop
+sprockets.  Here are a few of them:
+
+**sphinx-build -b html docs/ build/sphinx**
    Generate the documentation using sphinx.
 
-**flake8 sprockets tests.py**
-   Run flake8 over the code and report style violations.
+**ruff check sprockets tests.py**
+   Run linter over the code and report style violations.
 
-**yapf -ri sprockets tests.py**
+**ruff format sprockets tests.py**
    Inline format the code.  You might want to configure your editor to
    do this for you every time you save.
 
@@ -68,13 +71,11 @@ python versions in parallel.  This is essentially what our CI pipeline
 will do when you issue a pull request anyway::
 
    $ tox -p auto
-   ✔ OK py37 in 2.636 seconds
-   ✔ OK py38 in 2.661 seconds
    ✔ OK py39 in 2.705 seconds
+   ✔ OK py312 in 2.006 seconds
    __________________________________________________________________________
-     py37: commands succeeded
-     py38: commands succeeded
      py39: commands succeeded
+     py312: commands succeeded
      congratulations :)
 
 This is what you want to see.  Now you can make your modifications and keep

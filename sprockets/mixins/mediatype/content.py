@@ -27,6 +27,7 @@ adds content handling methods to :class:`~tornado.web.RequestHandler`
 instances.
 
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,6 +51,14 @@ SETTINGS_KEY = 'sprockets.mixins.mediatype.ContentSettings'
 """Key in application.settings to store the ContentSettings instance."""
 
 _warning_issued = False
+
+
+def _format_content_type(ct: datastructures.ContentType) -> str:
+    return (
+        f'{ct.content_type}/{ct.content_subtype}+{ct.content_suffix}'
+        if ct.content_suffix
+        else f'{ct.content_type}/{ct.content_subtype}'
+    )
 
 
 class ContentSettings:
@@ -107,13 +116,17 @@ class ContentSettings:
         parsed = headers.parse_content_type(content_type)
         return self._handlers[str(parsed)]
 
-    def __setitem__(self, content_type: str,
-                    handler: type_info.Transcoder) -> None:
+    def __setitem__(
+        self, content_type: str, handler: type_info.Transcoder
+    ) -> None:
         parsed = headers.parse_content_type(content_type)
         content_type = str(parsed)
         if content_type in self._handlers:
-            logger.warning('handler for %s already set to %r', content_type,
-                           self._handlers[content_type])
+            logger.warning(
+                'handler for %s already set to %r',
+                content_type,
+                self._handlers[content_type],
+            )
             return
 
         self._available_types.append(parsed)
@@ -122,14 +135,15 @@ class ContentSettings:
     def get(
         self,
         content_type: str,
-        default: typing.Union[type_info.Transcoder, None] = None
+        default: typing.Union[type_info.Transcoder, None] = None,
     ) -> typing.Union[type_info.Transcoder, None]:
         """Retrieve the handler for a specific content type."""
         return self._handlers.get(content_type, default)
 
     @property
     def available_content_types(
-            self) -> typing.Sequence[datastructures.ContentType]:
+        self,
+    ) -> typing.Sequence[datastructures.ContentType]:
         """
         List of the content types that are registered.
 
@@ -150,17 +164,23 @@ class ContentSettings:
                 DeprecationWarning(
                     'Using sprockets.mixins.mediatype without a default'
                     ' content type is deprecated and will become an error'
-                    ' in a future version'))
+                    ' in a future version'
+                ),
+                stacklevel=2,
+            )
         self._default_content_type = new_value
 
 
-def install(application: type_info.HasSettings,
-            default_content_type: typing.Optional[str],
-            encoding: typing.Optional[str] = None) -> ContentSettings:
+def install(
+    application: type_info.HasSettings,
+    default_content_type: typing.Optional[str],
+    encoding: typing.Optional[str] = None,
+) -> ContentSettings:
     """Install the media type management settings and return it"""
     try:
-        settings = typing.cast(ContentSettings,
-                               application.settings[SETTINGS_KEY])
+        settings = typing.cast(
+            'ContentSettings', application.settings[SETTINGS_KEY]
+        )
     except KeyError:
         settings = application.settings[SETTINGS_KEY] = ContentSettings()
         settings.default_content_type = default_content_type
@@ -170,21 +190,19 @@ def install(application: type_info.HasSettings,
 
 @typing.overload
 def get_settings(
-    application: type_info.HasSettings,
-    force_instance: Literal[False] = False
-) -> typing.Union[ContentSettings, None]:
-    ...  # pragma: no cover
+    application: type_info.HasSettings, force_instance: Literal[False] = False
+) -> typing.Union[ContentSettings, None]: ...  # pragma: no cover
 
 
 @typing.overload
-def get_settings(application: type_info.HasSettings,
-                 force_instance: Literal[True]) -> ContentSettings:
-    ...  # pragma: no cover
+def get_settings(
+    application: type_info.HasSettings, force_instance: Literal[True]
+) -> ContentSettings: ...  # pragma: no cover
 
 
 def get_settings(
-        application: type_info.HasSettings,
-        force_instance: bool = False) -> typing.Union[ContentSettings, None]:
+    application: type_info.HasSettings, force_instance: bool = False
+) -> typing.Union[ContentSettings, None]:
     """
     Retrieve the media type settings for a application.
 
@@ -198,16 +216,21 @@ def get_settings(
 
     """
     try:
-        return typing.cast(ContentSettings, application.settings[SETTINGS_KEY])
+        return typing.cast(
+            'ContentSettings', application.settings[SETTINGS_KEY]
+        )
     except KeyError:
         if not force_instance:
             return None
     return install(application, None)
 
 
-def add_binary_content_type(application: type_info.HasSettings,
-                            content_type: str, pack: type_info.PackBFunction,
-                            unpack: type_info.UnpackBFunction) -> None:
+def add_binary_content_type(
+    application: type_info.HasSettings,
+    content_type: str,
+    pack: type_info.PackBFunction,
+    unpack: type_info.UnpackBFunction,
+) -> None:
     """
     Add handler for a binary content type.
 
@@ -219,14 +242,18 @@ def add_binary_content_type(application: type_info.HasSettings,
         dictionary.  See :any:`type_info.UnpackBFunction`
 
     """
-    add_transcoder(application,
-                   handlers.BinaryContentHandler(content_type, pack, unpack))
+    add_transcoder(
+        application, handlers.BinaryContentHandler(content_type, pack, unpack)
+    )
 
 
-def add_text_content_type(application: type_info.HasSettings,
-                          content_type: str, default_encoding: str,
-                          dumps: type_info.DumpSFunction,
-                          loads: type_info.LoadSFunction) -> None:
+def add_text_content_type(
+    application: type_info.HasSettings,
+    content_type: str,
+    default_encoding: str,
+    dumps: type_info.DumpSFunction,
+    loads: type_info.LoadSFunction,
+) -> None:
     """
     Add handler for a text content type.
 
@@ -247,13 +274,17 @@ def add_text_content_type(application: type_info.HasSettings,
     normalized = str(parsed)
     add_transcoder(
         application,
-        handlers.TextContentHandler(normalized, dumps, loads,
-                                    default_encoding))
+        handlers.TextContentHandler(
+            normalized, dumps, loads, default_encoding
+        ),
+    )
 
 
-def add_transcoder(application: type_info.HasSettings,
-                   transcoder: type_info.Transcoder,
-                   content_type: typing.Optional[str] = None) -> None:
+def add_transcoder(
+    application: type_info.HasSettings,
+    transcoder: type_info.Transcoder,
+    content_type: typing.Optional[str] = None,
+) -> None:
     """
     Register a transcoder for a specific content type.
 
@@ -273,9 +304,11 @@ def add_transcoder(application: type_info.HasSettings,
     settings[content_type or transcoder.content_type] = transcoder
 
 
-def set_default_content_type(application: type_info.HasSettings,
-                             content_type: str,
-                             encoding: typing.Optional[str] = None) -> None:
+def set_default_content_type(
+    application: type_info.HasSettings,
+    content_type: str,
+    encoding: typing.Optional[str] = None,
+) -> None:
     """
     Store the default content type for an application.
 
@@ -309,6 +342,7 @@ class ContentMixin(web.RequestHandler):
     using ``self.write()``.
 
     """
+
     def initialize(self) -> None:
         super().initialize()
         self._request_body: typing.Optional[type_info.Deserialized] = None
@@ -333,16 +367,17 @@ class ContentMixin(web.RequestHandler):
             settings = get_settings(self.application, force_instance=True)
             acceptable = headers.parse_accept(
                 self.request.headers.get(
-                    'Accept', settings.default_content_type
-                    if settings.default_content_type else '*/*'))
+                    'Accept',
+                    settings.default_content_type
+                    if settings.default_content_type
+                    else '*/*',
+                )
+            )
             try:
                 selected, _ = algorithms.select_content_type(
-                    acceptable, settings.available_content_types)
-                self._best_response_match = '/'.join(
-                    [selected.content_type, selected.content_subtype])
-                if selected.content_suffix is not None:
-                    self._best_response_match = '+'.join(
-                        [self._best_response_match, selected.content_suffix])
+                    acceptable, settings.available_content_types
+                )
+                self._best_response_match = _format_content_type(selected)
             except errors.NoMatch:
                 self._best_response_match = settings.default_content_type
 
@@ -362,37 +397,38 @@ class ContentMixin(web.RequestHandler):
         if self._request_body is None:
             settings = get_settings(self.application, force_instance=True)
             content_type = self.request.headers.get(
-                'Content-Type', settings.default_content_type)
+                'Content-Type', settings.default_content_type
+            )
 
             try:
-                content_type_header = headers.parse_content_type(content_type)
-            except ValueError:
-                raise web.HTTPError(400, 'failed to parse content type %s',
-                                    content_type)
-            content_type = '/'.join([
-                content_type_header.content_type,
-                content_type_header.content_subtype
-            ])
-            if content_type_header.content_suffix is not None:
-                content_type = '+'.join(
-                    [content_type, content_type_header.content_suffix])
+                content_type_header = headers.parse_content_type(
+                    content_type or 'binary/octet-stream'
+                )
+            except ValueError as e:
+                raise web.HTTPError(
+                    400, 'failed to parse content type %s', content_type
+                ) from e
+            content_type = _format_content_type(content_type_header)
             try:
                 handler = settings[content_type]
-            except KeyError:
-                raise web.HTTPError(415, 'cannot decode body of type %s',
-                                    content_type)
+            except KeyError as e:
+                raise web.HTTPError(
+                    415, 'cannot decode body of type %s', content_type
+                ) from e
 
             try:
                 self._request_body = handler.from_bytes(self.request.body)
-            except Exception:
+            except Exception as e:
                 self._logger.error('failed to decode request body')
-                raise web.HTTPError(400, 'failed to decode request')
+                raise web.HTTPError(400, 'failed to decode request') from e
 
         return self._request_body
 
-    def send_response(self,
-                      body: type_info.Serializable,
-                      set_content_type: typing.Optional[bool] = True) -> None:
+    def send_response(
+        self,
+        body: type_info.Serializable,
+        set_content_type: typing.Optional[bool] = True,
+    ) -> None:
         """
         Serialize and send ``body`` in the response.
 
@@ -409,8 +445,9 @@ class ContentMixin(web.RequestHandler):
         settings = get_settings(self.application, force_instance=True)
         response_type = self.get_response_content_type()
         if response_type is None:
-            self._logger.error('failed to find a suitable response '
-                               'content type for request')
+            self._logger.error(
+                'failed to find a suitable response content type for request'
+            )
             self._logger.error('please set a default content type')
             raise web.HTTPError(406)
 
@@ -419,17 +456,24 @@ class ContentMixin(web.RequestHandler):
         except KeyError:
             self._logger.error(
                 'no transcoder for the selected response content type %s, '
-                'is the default content type %r correct?', response_type,
-                settings.default_content_type)
-            raise web.HTTPError(500)
+                'is the default content type %r correct?',
+                response_type,
+                settings.default_content_type,
+            )
+            raise web.HTTPError(500) from None
         else:
             try:
                 content_type, data_bytes = handler.to_bytes(body)
             except (TypeError, ValueError) as e:
                 self._logger.error(
                     'selected transcoder (%s) failed to encode response '
-                    'body: %s', handler.__class__.__name__, e)
-                raise web.HTTPError(500, reason='Response Encoding Failure')
+                    'body: %s',
+                    handler.__class__.__name__,
+                    e,
+                )
+                raise web.HTTPError(
+                    500, reason='Response Encoding Failure'
+                ) from e
             else:
                 if set_content_type:
                     self.set_header('Content-Type', content_type)

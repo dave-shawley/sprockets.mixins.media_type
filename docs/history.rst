@@ -3,6 +3,7 @@ Version History
 
 :compare:`Next <3.0.4...master>`
 --------------------------------
+- **Bump minimum Python version to 3.9**
 - Add a transcoder for `application/x-www-formurlencoded`_
 - Add type annotations (see :ref:`type-info`)
 - Return a "406 Not Acceptable" if the :http:header:`Accept` header values cannot be matched
@@ -11,8 +12,12 @@ Version History
 - Fail gracefully when a transcoder does not exist for the default content type
 - Fail gracefully when a transcoder raises a :exc:`TypeError` or :exc:`ValueError` when encoding
   the response
+- Remove setuptools, replace with :pep:`517` and hatch_
+- Replace flake8 with ruff
+- Replace yapf with ruff
 
 .. _application/x-www-formurlencoded: https://url.spec.whatwg.org/#application/x-www-form-urlencoded
+.. _hatch: https://hatch.pypa.io/latest/
 
 :compare:`3.0.4 <3.0.3...3.0.4>` (2 Nov 2020)
 ---------------------------------------------

@@ -7,13 +7,15 @@ Basic content handlers.
   to text before calling functions that encode & decode text
 
 """
+
 from __future__ import annotations
 
 import typing
 
 from tornado import escape
 
-from sprockets.mixins.mediatype import type_info
+if typing.TYPE_CHECKING:
+    from sprockets.mixins.mediatype import type_info
 
 
 class BinaryContentHandler:
@@ -30,16 +32,22 @@ class BinaryContentHandler:
     and unpacking functions.
 
     """
-    def __init__(self, content_type: str, pack: type_info.PackBFunction,
-                 unpack: type_info.UnpackBFunction) -> None:
+
+    def __init__(
+        self,
+        content_type: str,
+        pack: type_info.PackBFunction,
+        unpack: type_info.UnpackBFunction,
+    ) -> None:
         self._pack = pack
         self._unpack = unpack
         self.content_type = content_type
 
     def to_bytes(
-            self,
-            inst_data: type_info.Serializable,
-            encoding: typing.Optional[str] = None) -> typing.Tuple[str, bytes]:
+        self,
+        inst_data: type_info.Serializable,
+        encoding: typing.Optional[str] = None,  # noqa: ARG002
+    ) -> typing.Tuple[str, bytes]:
         """
         Transform an object into :class:`bytes`.
 
@@ -53,9 +61,10 @@ class BinaryContentHandler:
         return self.content_type, self._pack(inst_data)
 
     def from_bytes(
-            self,
-            data_bytes: bytes,
-            encoding: typing.Optional[str] = None) -> type_info.Deserialized:
+        self,
+        data_bytes: bytes,
+        encoding: typing.Optional[str] = None,  # noqa: ARG002
+    ) -> type_info.Deserialized:
         """
         Get an object from :class:`bytes`
 
@@ -86,18 +95,24 @@ class TextContentHandler:
     that tornado expects.
 
     """
-    def __init__(self, content_type: str, dumps: type_info.DumpSFunction,
-                 loads: type_info.LoadSFunction,
-                 default_encoding: str) -> None:
+
+    def __init__(
+        self,
+        content_type: str,
+        dumps: type_info.DumpSFunction,
+        loads: type_info.LoadSFunction,
+        default_encoding: str,
+    ) -> None:
         self._dumps = dumps
         self._loads = loads
         self.content_type = content_type
         self.default_encoding = default_encoding
 
     def to_bytes(
-            self,
-            inst_data: type_info.Serializable,
-            encoding: typing.Optional[str] = None) -> typing.Tuple[str, bytes]:
+        self,
+        inst_data: type_info.Serializable,
+        encoding: typing.Optional[str] = None,
+    ) -> typing.Tuple[str, bytes]:
         """
         Transform an object into :class:`bytes`.
 
@@ -116,9 +131,8 @@ class TextContentHandler:
         return content_type, dumped.encode(selected)
 
     def from_bytes(
-            self,
-            data: bytes,
-            encoding: typing.Optional[str] = None) -> type_info.Deserialized:
+        self, data: bytes, encoding: typing.Optional[str] = None
+    ) -> type_info.Deserialized:
         """
         Get an object from :class:`bytes`
 
