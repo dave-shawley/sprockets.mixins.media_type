@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import datetime
 import json
@@ -45,7 +47,7 @@ def pack_string(obj: object) -> bytes:
     return prefix + payload
 
 
-def pack_bytes(payload: bytes) -> bytes:
+def pack_bytes(payload: bytes | bytearray) -> bytes:
     """Optimally pack a byte string according to msgpack format"""
     pl = len(payload)
     if pl < (2**8):
@@ -346,7 +348,7 @@ class MixinCacheTests(unittest.TestCase):
             self.assertEqual(1, select_content_type.call_count)
 
     def test_that_request_body_is_cached(self) -> None:
-        self.transcoder.from_bytes = unittest.mock.Mock(  # type: ignore[assignment]
+        self.transcoder.from_bytes = unittest.mock.Mock(  # type: ignore[method-assign]
             wraps=self.transcoder.from_bytes
         )
         first = self.handler.get_request_body()

@@ -247,12 +247,12 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
             return datum
 
         if isinstance(datum, (collections.abc.Sequence, collections.abc.Set)):
-            return [self.normalize_datum(item) for item in datum]
+            return [self.normalize_datum(item) for item in datum]  # type: ignore[arg-type]
 
         if isinstance(datum, collections.abc.Mapping):
             out = {}
             for k, v in datum.items():
-                out[k] = self.normalize_datum(v)
+                out[k] = self.normalize_datum(v)  # type: ignore[arg-type]
             return out
 
         raise TypeError(

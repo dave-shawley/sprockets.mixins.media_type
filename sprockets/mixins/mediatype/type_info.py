@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import typing
 import uuid
+from collections import abc
 
 try:
     from typing import Protocol, runtime_checkable
 except ImportError:
     # "ignore" is required to avoid an incompatible import
     # error due to different bindings of _SpecialForm
-    from typing_extensions import Protocol, runtime_checkable  # type: ignore
+    from typing_extensions import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -40,7 +41,7 @@ SerializablePrimitives = (
 )
 """Use this with isinstance to identify simple values."""
 
-Serializable = typing.Union[
+Serializable: typing.TypeAlias = typing.Union[
     DefinesIsoFormat,
     None,
     bool,
@@ -50,9 +51,9 @@ Serializable = typing.Union[
     int,
     memoryview,
     str,
-    typing.Mapping,
-    typing.Sequence,
-    typing.Set,
+    abc.Mapping[str, object],
+    abc.Sequence[object],
+    abc.Set[object],
     uuid.UUID,
 ]
 """Types that can be serialized by this library.
@@ -63,7 +64,9 @@ is capable for serializing.
 
 """
 
-Deserialized = typing.Union[None, bytes, typing.Mapping, float, int, list, str]
+Deserialized = typing.Union[
+    None, bytes, abc.Mapping[str, object], float, int, list[object], str
+]
 """Possible result of deserializing a body.
 
 This is the set of types that
@@ -72,26 +75,26 @@ might return.
 
 """
 
-PackBFunction = typing.Callable[[Serializable], bytes]
+PackBFunction = abc.Callable[[Serializable], bytes]
 """Signature of a binary content handler's serialization hook."""
 
-UnpackBFunction = typing.Callable[[bytes], Deserialized]
+UnpackBFunction = abc.Callable[[bytes], Deserialized]
 """Signature of a binary content handler's deserialization hook."""
 
-DumpSFunction = typing.Callable[[Serializable], str]
+DumpSFunction = abc.Callable[[Serializable], str]
 """Signature of a text content handler's serialization hook."""
 
-LoadSFunction = typing.Callable[[str], Deserialized]
+LoadSFunction = abc.Callable[[str], Deserialized]
 """Signature of a text content handler's deserialization hook."""
 
 MsgPackable = typing.Union[
     None,
     bool,
     bytes,
-    typing.Dict[typing.Any, typing.Any],
+    dict[typing.Any, typing.Any],
     float,
     int,
-    typing.List[typing.Any],
+    list[typing.Any],
     str,
 ]
 """Set of types that the underlying msgpack library can serialize."""
@@ -114,8 +117,8 @@ class Transcoder(Protocol):
     """Canonical content type that this transcoder implements."""
 
     def to_bytes(
-        self, inst_data: Serializable, encoding: typing.Optional[str] = None
-    ) -> typing.Tuple[str, bytes]:
+        self, inst_data: Serializable, encoding: str | None = None
+    ) -> tuple[str, bytes]:
         """Serialize `inst_data` into a byte stream and content type spec.
 
         :param inst_data: the data to serialize
@@ -131,7 +134,7 @@ class Transcoder(Protocol):
         ...
 
     def from_bytes(
-        self, data_bytes: bytes, encoding: typing.Optional[str] = None
+        self, data_bytes: bytes, encoding: str | None = None
     ) -> Deserialized:
         """Deserialize `bytes` into a Python object instance.
 
