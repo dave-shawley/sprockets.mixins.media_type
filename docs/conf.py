@@ -16,6 +16,7 @@ html_sidebars = {
 extensions.append('sphinx.ext.intersphinx')
 intersphinx_mapping = {
     'ietfparse': ('https://ietfparse.readthedocs.io/en/latest', None),
+    'pydantic': ('https://docs.pydantic.dev/latest', None),
     'python': ('https://docs.python.org/3', None),
     'requests': ('https://requests.readthedocs.org/en/latest/', None),
     'sprockets': ('https://sprockets.readthedocs.org/en/latest/', None),
@@ -37,6 +38,7 @@ autodoc_type_aliases = {
         'LoadSFunction',
         'MsgPackable',
         'PackBFunction',
+        'PydanticModel',
         'Serializable',
         'Transcoder',
         'UnpackBFunction',

@@ -12,6 +12,7 @@ import unittest.mock
 import urllib.parse
 import uuid
 
+import pydantic
 import umsgpack
 from ietfparse import algorithms
 from tornado import httputil, testing, web
@@ -805,3 +806,61 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual(
             b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
         )
+
+
+class Item(pydantic.BaseModel):
+    name: str
+    price: float
+
+
+class WarehouseBin(pydantic.BaseModel):
+    location: str
+    last_verified: datetime.datetime
+    items: list[Item] = pydantic.Field(default_factory=list)
+
+
+class PydanticSupportTests(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.payload = WarehouseBin.model_validate(
+            {
+                'location': 'A1',
+                'last_verified': now,
+                'items': [
+                    {'name': 'Widget', 'price': 10.0},
+                    {'name': 'Gadget', 'price': 20.0},
+                ],
+            }
+        )
+        self.normalized = self.payload.model_dump(mode='python')
+        self.normalized['last_verified'] = now.isoformat()
+
+    def test_json_dumping(self) -> None:
+        transcoder = transcoders.JSONTranscoder()
+        _, result = transcoder.to_bytes(self.payload)
+        self.assertEqual(self.normalized, json.loads(result.decode()))
+        self.assertEqual(
+            self.payload,
+            WarehouseBin.model_validate(json.loads(result.decode())),
+        )
+
+    def test_msgpack_dumping(self) -> None:
+        transcoder = transcoders.MsgPackTranscoder()
+        _, result = transcoder.to_bytes(self.payload)
+        self.assertEqual(self.normalized, umsgpack.unpackb(result))
+        self.assertEqual(
+            self.payload,
+            WarehouseBin.model_validate(umsgpack.unpackb(result)),
+        )
+
+    def test_form_url_encoded_dumping(self) -> None:
+        transcoder = transcoders.FormUrlEncodedTranscoder(
+            encode_sequences=True
+        )
+        _, result = transcoder.to_bytes(self.payload)
+
+        expected = urllib.parse.urlencode(
+            self.normalized, doseq=True, quote_via=urllib.parse.quote
+        )
+        self.assertEqual(expected.encode(), result)

@@ -28,6 +28,23 @@ class HasSettings(Protocol):
     """Application settings."""
 
 
+T_Pydantic = typing.TypeVar('T_Pydantic', bound='PydanticModel')
+
+
+@runtime_checkable
+class PydanticModel(Protocol):
+    """Class that resembles a pydantic model."""
+
+    @classmethod
+    def model_validate(cls: type[T_Pydantic], obj: object) -> T_Pydantic:
+        """Validate an object and return a model instance."""
+        ...
+
+    def model_dump(self, *, mode: str) -> dict[str, typing.Any]:
+        """Serialize the model to a dictionary."""
+        ...
+
+
 SerializablePrimitives = (
     type(None),
     bool,
@@ -55,6 +72,7 @@ Serializable: typing.TypeAlias = typing.Union[
     abc.Sequence[object],
     abc.Set[object],
     uuid.UUID,
+    PydanticModel,
 ]
 """Types that can be serialized by this library.
 

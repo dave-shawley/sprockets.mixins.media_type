@@ -19,6 +19,10 @@ import urllib.parse
 import uuid
 
 try:
+    import pydantic
+except ImportError:  # pragma: no cover
+    pydantic = None  # type: ignore
+try:
     import umsgpack
 except ImportError:  # pragma: no cover
     umsgpack = None  # type: ignore
@@ -102,7 +106,9 @@ class JSONTranscoder(handlers.TextContentHandler):
             'type_info.Deserialized', json.loads(str_repr, **self.load_options)
         )
 
-    def dump_object(self, obj: type_info.Serializable) -> str:
+    def dump_object(
+        self, obj: type_info.Serializable
+    ) -> str | dict[str, object]:
         """
         Called to encode unrecognized object.
 
@@ -114,20 +120,22 @@ class JSONTranscoder(handlers.TextContentHandler):
         to :func:`json.dumps`.  It provides default representations for
         a number of Python language/standard library types.
 
-        +----------------------------+---------------------------------------+
-        | Python Type                | String Format                         |
-        +----------------------------+---------------------------------------+
-        | :class:`bytes`,            | Base64 encoded string.                |
-        | :class:`bytearray`,        |                                       |
-        | :class:`memoryview`        |                                       |
-        +----------------------------+---------------------------------------+
-        | :class:`datetime.datetime` | ISO8601 formatted timestamp in the    |
-        |                            | extended format including separators, |
-        |                            | milliseconds, and the timezone        |
-        |                            | designator.                           |
-        +----------------------------+---------------------------------------+
-        | :class:`uuid.UUID`         | Same as ``str(value)``                |
-        +----------------------------+---------------------------------------+
+        +-----------------------------+---------------------------------------+
+        | Python Type                 | String Format                         |
+        +-----------------------------+---------------------------------------+
+        | :class:`bytes`,             | Base64 encoded string.                |
+        | :class:`bytearray`,         |                                       |
+        | :class:`memoryview`         |                                       |
+        +-----------------------------+---------------------------------------+
+        | :class:`datetime.datetime`  | ISO8601 formatted timestamp in the    |
+        |                             | extended format including separators, |
+        |                             | milliseconds, and the timezone        |
+        |                             | designator.                           |
+        +-----------------------------+---------------------------------------+
+        | :class:`uuid.UUID`          | Same as ``str(value)``                |
+        +-----------------------------+---------------------------------------+
+        | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
+        +-----------------------------+---------------------------------------+
 
         """
         for match_type, hook in _COERCION_HOOKS.items():
@@ -136,6 +144,8 @@ class JSONTranscoder(handlers.TextContentHandler):
                 if isinstance(result, bytes):
                     result = base64.b64encode(result).decode('ASCII')
                 return result
+        if pydantic is not None and isinstance(obj, pydantic.BaseModel):
+            return obj.model_dump(mode='python')
         raise TypeError('{!r} is not JSON serializable'.format(obj))
 
 
@@ -216,6 +226,12 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         +-----------------------------------+-------------------------------+
         | :class:`uuid.UUID`                | Converted to String           |
         +-----------------------------------+-------------------------------+
+        | :class:`datetime.datetime`        | Converted to String           |
+        +-----------------------------------+-------------------------------+
+        | :class:`pydantic.BaseModel`       | Recursively encoded after     |
+        |                                   | calling ``model_dump()`` in   |
+        |                                   | "python" mode.                |
+        +-----------------------------------+-------------------------------+
 
         .. _nil byte: https://github.com/msgpack/msgpack/blob/
            0b8f5ac67cdd130f4d4d4fe6afb839b989fdb86a/spec.md#formats-nil
@@ -247,6 +263,9 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
 
         if isinstance(datum, (bytes, str)):
             return datum
+
+        if pydantic is not None and isinstance(datum, pydantic.BaseModel):
+            return self.normalize_datum(datum.model_dump(mode='python'))
 
         if isinstance(datum, (collections.abc.Sequence, collections.abc.Set)):
             return [self.normalize_datum(item) for item in datum]  # type: ignore[arg-type]
@@ -294,29 +313,32 @@ class FormUrlEncodedTranscoder:
     sequences of pairs and encodes both the name and value.  The
     following table describes how each supported type is encoded.
 
-    +----------------------------+---------------------------------------+
-    | Value / Type               | Encoding                              |
-    +============================+=======================================+
-    | character strings          | UTF-8 codepoints before percent-      |
-    |                            | encoding the resulting bytes          |
-    +----------------------------+---------------------------------------+
-    | space character            | ``%20`` or ``+``                      |
-    +----------------------------+---------------------------------------+
-    | :data:`False`              | ``false``                             |
-    +----------------------------+---------------------------------------+
-    | :data:`True`               | ``true``                              |
-    +----------------------------+---------------------------------------+
-    | :data:`None`               | the empty string                      |
-    +----------------------------+---------------------------------------+
-    | numbers                    | ``str(n)``                            |
-    +----------------------------+---------------------------------------+
-    | byte sequences             | percent-encoded bytes                 |
-    +----------------------------+---------------------------------------+
-    | :class:`uuid.UUID`         | ``str(u)``                            |
-    +----------------------------+---------------------------------------+
-    | :class:`datetime.datetime` | result of calling                     |
-    |                            | :meth:`~datetime.datetime.isoformat`  |
-    +----------------------------+---------------------------------------+
+    +-----------------------------+----------------------------------------+
+    | Value / Type                | Encoding                               |
+    +=============================+========================================+
+    | character strings           | UTF-8 codepoints before percent-       |
+    |                             | encoding the resulting bytes           |
+    +-----------------------------+----------------------------------------+
+    | space character             | ``%20`` or ``+``                       |
+    +-----------------------------+----------------------------------------+
+    | :data:`False`               | ``false``                              |
+    +-----------------------------+----------------------------------------+
+    | :data:`True`                | ``true``                               |
+    +-----------------------------+----------------------------------------+
+    | :data:`None`                | the empty string                       |
+    +-----------------------------+----------------------------------------+
+    | numbers                     | ``str(n)``                             |
+    +-----------------------------+----------------------------------------+
+    | byte sequences              | percent-encoded bytes                  |
+    +-----------------------------+----------------------------------------+
+    | :class:`uuid.UUID`          | ``str(u)``                             |
+    +-----------------------------+----------------------------------------+
+    | :class:`datetime.datetime`  | result of calling                      |
+    |                             | :meth:`~datetime.datetime.isoformat`   |
+    +-----------------------------+----------------------------------------+
+    | :class:`pydantic.BaseModel` | encoded after calling ``model_dump()`` |
+    |                             | in "python" mode                       |
+    +-----------------------------+----------------------------------------+
 
     https://url.spec.whatwg.org/#application/x-www-form-urlencoded
 
@@ -478,6 +500,8 @@ class FormUrlEncodedTranscoder:
         self, value: type_info.Serializable
     ) -> typing.Iterable[typing.Tuple[typing.Any, typing.Any]]:
         tuples: typing.Iterable[typing.Tuple[typing.Any, typing.Any]]
+        if pydantic is not None and isinstance(value, pydantic.BaseModel):
+            value = value.model_dump(mode='python')
         if isinstance(value, collections.abc.Mapping):
             tuples = value.items()
         else:

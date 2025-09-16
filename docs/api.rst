@@ -99,3 +99,6 @@ Contract Types
 
 .. autoclass:: DefinesIsoFormat
    :members:
+
+.. autoclass:: PydanticModel
+   :members:
