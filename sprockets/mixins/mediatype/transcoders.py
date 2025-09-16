@@ -33,6 +33,18 @@ _FORM_URLENCODING.update({ord(c): c for c in '*-_.'})
 _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
+_COERCION_HOOKS: collections.abc.Mapping[
+    type[type_info.Serializable],
+    typing.Callable[[type_info.Serializable], str | bytes],
+] = {
+    uuid.UUID: lambda x: str(x),
+    bytearray: lambda x: bytes(typing.cast('bytearray', x)),
+    memoryview: lambda x: typing.cast('memoryview', x).tobytes(),
+    type_info.DefinesIsoFormat: lambda x: typing.cast(
+        'type_info.DefinesIsoFormat', x
+    ).isoformat(),
+}
+
 
 class JSONTranscoder(handlers.TextContentHandler):
     """
@@ -118,12 +130,12 @@ class JSONTranscoder(handlers.TextContentHandler):
         +----------------------------+---------------------------------------+
 
         """
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        if hasattr(obj, 'isoformat'):
-            return typing.cast('type_info.DefinesIsoFormat', obj).isoformat()
-        if isinstance(obj, (bytes, bytearray, memoryview)):
-            return base64.b64encode(obj).decode('ASCII')
+        for match_type, hook in _COERCION_HOOKS.items():
+            if isinstance(obj, match_type):
+                result = hook(obj)
+                if isinstance(result, bytes):
+                    result = base64.b64encode(result).decode('ASCII')
+                return result
         raise TypeError('{!r} is not JSON serializable'.format(obj))
 
 
@@ -229,19 +241,9 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         if isinstance(datum, self.PACKABLE_TYPES):
             return datum
 
-        if isinstance(datum, uuid.UUID):
-            datum = str(datum)
-
-        if isinstance(datum, bytearray):
-            datum = bytes(datum)
-
-        if isinstance(datum, memoryview):
-            datum = datum.tobytes()
-
-        if hasattr(datum, 'isoformat'):
-            datum = typing.cast(
-                'type_info.DefinesIsoFormat', datum
-            ).isoformat()
+        for match_type, hook in _COERCION_HOOKS.items():
+            if isinstance(datum, match_type):
+                datum = hook(datum)
 
         if isinstance(datum, (bytes, str)):
             return datum
