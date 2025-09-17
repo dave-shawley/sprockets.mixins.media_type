@@ -37,17 +37,27 @@ _FORM_URLENCODING.update({ord(c): c for c in '*-_.'})
 _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
-_COERCION_HOOKS: collections.abc.Mapping[
-    type[type_info.Serializable],
-    typing.Callable[[type_info.Serializable], str | bytes],
-] = {
-    uuid.UUID: lambda x: str(x),
-    bytearray: lambda x: bytes(typing.cast('bytearray', x)),
-    memoryview: lambda x: typing.cast('memoryview', x).tobytes(),
-    type_info.DefinesIsoFormat: lambda x: typing.cast(
-        'type_info.DefinesIsoFormat', x
-    ).isoformat(),
-}
+
+def _coerce_value(obj: type_info.Serializable) -> str | bytes | None:
+    """Common value coercion used for JSON & MsgPack.
+
+    Converts special types to their serializable representations:
+    - uuid.UUID -> str
+    - bytearray -> bytes
+    - memoryview -> bytes
+    - DefinesIsoFormat -> str (ISO format)
+
+    Returns None if the object type is not handled by this function.
+    """
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+    if isinstance(obj, bytearray):
+        return bytes(obj)
+    if isinstance(obj, memoryview):
+        return obj.tobytes()
+    if isinstance(obj, type_info.DefinesIsoFormat):
+        return obj.isoformat()
+    return None
 
 
 class JSONTranscoder(handlers.TextContentHandler):
@@ -138,12 +148,10 @@ class JSONTranscoder(handlers.TextContentHandler):
         +-----------------------------+---------------------------------------+
 
         """
-        for match_type, hook in _COERCION_HOOKS.items():
-            if isinstance(obj, match_type):
-                result = hook(obj)
-                if isinstance(result, bytes):
-                    result = base64.b64encode(result).decode('ASCII')
-                return result
+        if (result := _coerce_value(obj)) is not None:
+            if isinstance(result, bytes):
+                return base64.b64encode(result).decode('ASCII')
+            return result
         if pydantic is not None and isinstance(obj, pydantic.BaseModel):
             return obj.model_dump(mode='python')
         raise TypeError('{!r} is not JSON serializable'.format(obj))
@@ -257,9 +265,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         if isinstance(datum, self.PACKABLE_TYPES):
             return datum
 
-        for match_type, hook in _COERCION_HOOKS.items():
-            if isinstance(datum, match_type):
-                datum = hook(datum)
+        if (result := _coerce_value(datum)) is not None:
+            datum = result
 
         if isinstance(datum, (bytes, str)):
             return datum
