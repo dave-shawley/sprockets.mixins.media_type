@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import decimal
+import ipaddress
 import pathlib
 import typing
 import uuid
@@ -62,7 +63,9 @@ SerializablePrimitives = (
     decimal.Decimal,
     float,
     int,
+    ipaddress.IPv4Address,
     memoryview,
+    pathlib.Path,
     str,
     uuid.UUID,
 )
@@ -77,6 +80,7 @@ Serializable: typing.TypeAlias = typing.Union[
     decimal.Decimal,
     float,
     int,
+    ipaddress.IPv4Address,
     memoryview,
     pathlib.Path,
     str,

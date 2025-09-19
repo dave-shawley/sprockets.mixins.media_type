@@ -4,6 +4,7 @@ import base64
 import dataclasses
 import datetime
 import decimal
+import ipaddress
 import json
 import math
 import os
@@ -424,6 +425,12 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(loaded['path'], str(path))
 
+    def test_that_ipv4_addresses_are_converted_to_strings(self) -> None:
+        addr = ipaddress.IPv4Address('192.168.1.1')
+        dumped = self.transcoder.dumps({'addr': addr})
+        loaded = json.loads(dumped)
+        self.assertEqual(loaded['addr'], str(addr))
+
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
@@ -683,6 +690,12 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(self.transcoder.unpackb(dumped), str(path))
         self.assertEqual(dumped, pack_string(str(path)))
 
+    def test_that_ipv4_addresses_are_converted_to_strings(self) -> None:
+        addr = ipaddress.IPv4Address('192.168.1.1')
+        dumped = self.transcoder.packb(addr)
+        self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
+        self.assertEqual(dumped, pack_string(str(addr)))
+
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
@@ -871,6 +884,11 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         path = pathlib.Path('/home/user/file.txt')
         _, result = self.transcoder.to_bytes({'path': path})
         self.assertEqual(b'path=%2Fhome%2Fuser%2Ffile.txt', result)
+
+    def test_that_ipv4_addresses_are_stringified(self) -> None:
+        addr = ipaddress.IPv4Address('192.168.1.1')
+        _, result = self.transcoder.to_bytes({'addr': addr})
+        self.assertEqual(b'addr=192.168.1.1', result)
 
     def test_that_dataclasses_are_serialized(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)

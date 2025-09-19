@@ -13,6 +13,7 @@ import base64
 import collections.abc
 import dataclasses
 import decimal
+import ipaddress
 import json
 import pathlib
 import string
@@ -53,6 +54,7 @@ def _coerce_value(  # noqa: PLR0911
     - DefinesIsoFormat -> str (ISO format)
     - decimal.Decimal -> float
     - pathlib.Path -> str
+    - ipaddress.IPv4Address -> str
 
     Returns None if the object type is not handled by this function.
     """
@@ -69,6 +71,8 @@ def _coerce_value(  # noqa: PLR0911
     if isinstance(obj, decimal.Decimal):
         return float(obj)
     if isinstance(obj, pathlib.Path):
+        return str(obj)
+    if isinstance(obj, ipaddress.IPv4Address):
         return str(obj)
     return None
 
@@ -160,6 +164,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         | :class:`decimal.Decimal`    | Same as ``float(value)``              |
         +-----------------------------+---------------------------------------+
         | :class:`pathlib.Path`       | Same as ``str(value)``                |
+        +-----------------------------+---------------------------------------+
+        | :class:`ipaddress.IPv4Address` | Same as ``str(value)``             |
         +-----------------------------+---------------------------------------+
         | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
         +-----------------------------+---------------------------------------+
@@ -258,6 +264,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`decimal.Decimal`          | `float family`_               |
         +-----------------------------------+-------------------------------+
         | :class:`pathlib.Path`             | Converted to String           |
+        +-----------------------------------+-------------------------------+
+        | :class:`ipaddress.IPv4Address`    | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`pydantic.BaseModel`       | Recursively encoded after     |
         |                                   | calling ``model_dump()`` in   |
@@ -367,6 +375,8 @@ class FormUrlEncodedTranscoder:
     | :class:`uuid.UUID`          | ``str(u)``                             |
     +-----------------------------+----------------------------------------+
     | :class:`pathlib.Path`       | ``str(p)``                             |
+    +-----------------------------+----------------------------------------+
+    | :class:`ipaddress.IPv4Address` | ``str(ip)``                         |
     +-----------------------------+----------------------------------------+
     | :class:`datetime.datetime`  | result of calling                      |
     |                             | :meth:`~datetime.datetime.isoformat`   |
