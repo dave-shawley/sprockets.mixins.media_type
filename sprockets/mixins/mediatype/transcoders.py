@@ -39,13 +39,16 @@ _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
 
-def _coerce_value(obj: type_info.Serializable) -> str | bytes | float | None:
+def _coerce_value(  # noqa: PLR0911
+    obj: type_info.Serializable,
+) -> str | bytes | float | None | dict[str, object]:
     """Common value coercion used for JSON & MsgPack.
 
     Converts special types to their serializable representations:
     - uuid.UUID -> str
     - bytearray -> bytes
     - memoryview -> bytes
+    - IsDataclass -> dict
     - DefinesIsoFormat -> str (ISO format)
     - decimal.Decimal -> float
 
@@ -59,6 +62,8 @@ def _coerce_value(obj: type_info.Serializable) -> str | bytes | float | None:
         return obj.tobytes()
     if isinstance(obj, type_info.DefinesIsoFormat):
         return obj.isoformat()
+    if dataclasses.is_dataclass(obj):
+        return dataclasses.asdict(obj)
     if isinstance(obj, decimal.Decimal):
         return float(obj)
     return None
@@ -141,16 +146,18 @@ class JSONTranscoder(handlers.TextContentHandler):
         | :class:`bytearray`,         |                                       |
         | :class:`memoryview`         |                                       |
         +-----------------------------+---------------------------------------+
+        : Dataclasses                 | :func:`dataclasses.asdict`            |
+        +-----------------------------+---------------------------------------+
         | :class:`datetime.datetime`  | ISO8601 formatted timestamp in the    |
         |                             | extended format including separators, |
         |                             | milliseconds, and the timezone        |
         |                             | designator.                           |
         +-----------------------------+---------------------------------------+
-        | :class:`uuid.UUID`          | Same as ``str(value)``                |
-        +-----------------------------+---------------------------------------+
         | :class:`decimal.Decimal`    | Same as ``float(value)``              |
         +-----------------------------+---------------------------------------+
         | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
+        +-----------------------------+---------------------------------------+
+        | :class:`uuid.UUID`          | Same as ``str(value)``                |
         +-----------------------------+---------------------------------------+
 
         """
@@ -520,6 +527,8 @@ class FormUrlEncodedTranscoder:
         tuples: typing.Iterable[typing.Tuple[typing.Any, typing.Any]]
         if pydantic is not None and isinstance(value, pydantic.BaseModel):
             value = value.model_dump(mode='python')
+        if dataclasses.is_dataclass(value):
+            value = dataclasses.asdict(value)
         if isinstance(value, collections.abc.Mapping):
             tuples = value.items()
         else:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import datetime
 import decimal
 import json
@@ -32,6 +33,14 @@ class Context:
 
     def __init__(self) -> None:
         self.settings: dict[str, object] = {}
+
+
+@dataclasses.dataclass
+class Event:
+    """Simple dataclass for testing serialization"""
+
+    event: str
+    when: datetime.datetime
 
 
 def pack_string(obj: object) -> bytes:
@@ -408,6 +417,15 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(loaded['n'], float(pi))
 
+    def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
+        expected = Event(
+            'Something Happened', datetime.datetime.now(datetime.timezone.utc)
+        )
+        dumped = self.transcoder.dumps(expected)
+        loaded = json.loads(dumped)
+        self.assertEqual(expected.event, loaded['event'])
+        self.assertEqual(expected.when.isoformat(), loaded['when'])
+
 
 class ContentSettingsTests(unittest.TestCase):
     def test_that_handler_listed_in_available_content_types(self) -> None:
@@ -652,6 +670,16 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(0xCB, dumped[0])
         self.assertEqual(struct.pack('>d', float(pi)), dumped[1:])
 
+    def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
+        when = datetime.datetime.now(datetime.timezone.utc)
+        event = Event('Something Happened', when)
+        encoded_date = umsgpack.packb(when.isoformat())
+        dumped = self.transcoder.packb(event)
+        self.assertEqual(
+            b'\x82\xa5event\xb2Something Happened\xa4when' + encoded_date,
+            dumped,
+        )
+
 
 class FormUrlEncodingTranscoderTests(unittest.TestCase):
     transcoder: type_info.Transcoder
@@ -825,6 +853,16 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         pi = decimal.Decimal('3.142857142857142857142857143')
         _, result = self.transcoder.to_bytes({'pi': pi})
         self.assertEqual('pi={}'.format(str(pi)).encode(), result)
+
+    def test_that_dataclasses_are_serialized(self) -> None:
+        when = datetime.datetime.now(datetime.timezone.utc)
+        event = Event('Something Happened', when)
+        _, result = self.transcoder.to_bytes(event)
+        self.assertEqual(
+            b'event=Something%20Happened&when='
+            + urllib.parse.quote(when.isoformat()).encode(),
+            result,
+        )
 
 
 class Item(pydantic.BaseModel):

@@ -5,11 +5,11 @@ Version History
 --------------------------------
 - **Bump minimum Python version to 3.9**
 - Add a transcoder for `application/x-www-formurlencoded`_
-- Add support for encoding :class:`decimal.Decimal`
+- Add support for encoding more types: :class:`decimal.Decimal`, `pydantic.BaseModel`,
+  :class:`dataclasses.dataclass` annotated types
 - Add type annotations (see :ref:`type-info`)
 - Return a "406 Not Acceptable" if the :http:header:`Accept` header values cannot be matched
   and there is no default content type configured
-- Add support for encoding :class:`pydantic.BaseModel` instances
 - Deprecate not having a default content type configured
 - Fail gracefully when a transcoder does not exist for the default content type
 - Fail gracefully when a transcoder raises a :exc:`TypeError` or :exc:`ValueError` when encoding

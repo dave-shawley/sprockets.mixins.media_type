@@ -22,6 +22,13 @@ class DefinesIsoFormat(Protocol):
         ...
 
 
+@runtime_checkable
+class IsDataclass(Protocol):
+    """Something that :func:`dataclasses.is_dataclass` recognizes."""
+
+    __dataclass_fields__: typing.ClassVar[dict[str, typing.Any]]
+
+
 class HasSettings(Protocol):
     """Something that quacks like a tornado.web.Application."""
 
@@ -75,6 +82,7 @@ Serializable: typing.TypeAlias = typing.Union[
     abc.Sequence[object],
     abc.Set[object],
     uuid.UUID,
+    IsDataclass,
     PydanticModel,
 ]
 """Types that can be serialized by this library.
