@@ -431,6 +431,12 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(loaded['addr'], str(addr))
 
+    def test_that_ipv6_addresses_are_converted_to_strings(self) -> None:
+        addr = ipaddress.IPv6Address('2001:db8::1')
+        dumped = self.transcoder.dumps({'addr': addr})
+        loaded = json.loads(dumped)
+        self.assertEqual(loaded['addr'], str(addr))
+
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
@@ -696,6 +702,12 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
         self.assertEqual(dumped, pack_string(str(addr)))
 
+    def test_that_ipv6_addresses_are_converted_to_strings(self) -> None:
+        addr = ipaddress.IPv6Address('2001:db8::1')
+        dumped = self.transcoder.packb(addr)
+        self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
+        self.assertEqual(dumped, pack_string(str(addr)))
+
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
@@ -889,6 +901,11 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         addr = ipaddress.IPv4Address('192.168.1.1')
         _, result = self.transcoder.to_bytes({'addr': addr})
         self.assertEqual(b'addr=192.168.1.1', result)
+
+    def test_that_ipv6_addresses_are_stringified(self) -> None:
+        addr = ipaddress.IPv6Address('2001:db8::1')
+        _, result = self.transcoder.to_bytes({'addr': addr})
+        self.assertEqual(b'addr=2001%3Adb8%3A%3A1', result)
 
     def test_that_dataclasses_are_serialized(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)

@@ -55,6 +55,7 @@ def _coerce_value(  # noqa: PLR0911
     - decimal.Decimal -> float
     - pathlib.Path -> str
     - ipaddress.IPv4Address -> str
+    - ipaddress.IPv6Address -> str
 
     Returns None if the object type is not handled by this function.
     """
@@ -72,7 +73,7 @@ def _coerce_value(  # noqa: PLR0911
         return float(obj)
     if isinstance(obj, pathlib.Path):
         return str(obj)
-    if isinstance(obj, ipaddress.IPv4Address):
+    if isinstance(obj, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         return str(obj)
     return None
 
@@ -166,6 +167,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         | :class:`pathlib.Path`       | Same as ``str(value)``                |
         +-----------------------------+---------------------------------------+
         | :class:`ipaddress.IPv4Address` | Same as ``str(value)``             |
+        +-----------------------------+---------------------------------------+
+        | :class:`ipaddress.IPv6Address` | Same as ``str(value)``             |
         +-----------------------------+---------------------------------------+
         | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
         +-----------------------------+---------------------------------------+
@@ -266,6 +269,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`pathlib.Path`             | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`ipaddress.IPv4Address`    | Converted to String           |
+        +-----------------------------------+-------------------------------+
+        | :class:`ipaddress.IPv6Address`    | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`pydantic.BaseModel`       | Recursively encoded after     |
         |                                   | calling ``model_dump()`` in   |
@@ -377,6 +382,8 @@ class FormUrlEncodedTranscoder:
     | :class:`pathlib.Path`       | ``str(p)``                             |
     +-----------------------------+----------------------------------------+
     | :class:`ipaddress.IPv4Address` | ``str(ip)``                         |
+    +-----------------------------+----------------------------------------+
+    | :class:`ipaddress.IPv6Address` | ``str(ip)``                         |
     +-----------------------------+----------------------------------------+
     | :class:`datetime.datetime`  | result of calling                      |
     |                             | :meth:`~datetime.datetime.isoformat`   |
