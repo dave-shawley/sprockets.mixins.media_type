@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import decimal
+import pathlib
 import typing
 import uuid
 from collections import abc
@@ -77,6 +78,7 @@ Serializable: typing.TypeAlias = typing.Union[
     float,
     int,
     memoryview,
+    pathlib.Path,
     str,
     abc.Mapping[str, object],
     abc.Sequence[object],

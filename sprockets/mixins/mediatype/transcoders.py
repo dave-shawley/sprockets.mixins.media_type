@@ -14,6 +14,7 @@ import collections.abc
 import dataclasses
 import decimal
 import json
+import pathlib
 import string
 import typing
 import urllib.parse
@@ -51,6 +52,7 @@ def _coerce_value(  # noqa: PLR0911
     - IsDataclass -> dict
     - DefinesIsoFormat -> str (ISO format)
     - decimal.Decimal -> float
+    - pathlib.Path -> str
 
     Returns None if the object type is not handled by this function.
     """
@@ -66,6 +68,8 @@ def _coerce_value(  # noqa: PLR0911
         return dataclasses.asdict(obj)
     if isinstance(obj, decimal.Decimal):
         return float(obj)
+    if isinstance(obj, pathlib.Path):
+        return str(obj)
     return None
 
 
@@ -154,6 +158,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         |                             | designator.                           |
         +-----------------------------+---------------------------------------+
         | :class:`decimal.Decimal`    | Same as ``float(value)``              |
+        +-----------------------------+---------------------------------------+
+        | :class:`pathlib.Path`       | Same as ``str(value)``                |
         +-----------------------------+---------------------------------------+
         | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
         +-----------------------------+---------------------------------------+
@@ -250,6 +256,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`datetime.datetime`        | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`decimal.Decimal`          | `float family`_               |
+        +-----------------------------------+-------------------------------+
+        | :class:`pathlib.Path`             | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`pydantic.BaseModel`       | Recursively encoded after     |
         |                                   | calling ``model_dump()`` in   |
@@ -357,6 +365,8 @@ class FormUrlEncodedTranscoder:
     | byte sequences              | percent-encoded bytes                  |
     +-----------------------------+----------------------------------------+
     | :class:`uuid.UUID`          | ``str(u)``                             |
+    +-----------------------------+----------------------------------------+
+    | :class:`pathlib.Path`       | ``str(p)``                             |
     +-----------------------------+----------------------------------------+
     | :class:`datetime.datetime`  | result of calling                      |
     |                             | :meth:`~datetime.datetime.isoformat`   |

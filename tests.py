@@ -7,6 +7,7 @@ import decimal
 import json
 import math
 import os
+import pathlib
 import pickle
 import struct
 import typing
@@ -417,6 +418,12 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(loaded['n'], float(pi))
 
+    def test_that_paths_are_converted_to_strings(self) -> None:
+        path = pathlib.Path('/home/user/file.txt')
+        dumped = self.transcoder.dumps({'path': path})
+        loaded = json.loads(dumped)
+        self.assertEqual(loaded['path'], str(path))
+
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
@@ -670,6 +677,12 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(0xCB, dumped[0])
         self.assertEqual(struct.pack('>d', float(pi)), dumped[1:])
 
+    def test_that_paths_are_converted_to_strings(self) -> None:
+        path = pathlib.Path('/home/user/file.txt')
+        dumped = self.transcoder.packb(path)
+        self.assertEqual(self.transcoder.unpackb(dumped), str(path))
+        self.assertEqual(dumped, pack_string(str(path)))
+
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
@@ -853,6 +866,11 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         pi = decimal.Decimal('3.142857142857142857142857143')
         _, result = self.transcoder.to_bytes({'pi': pi})
         self.assertEqual('pi={}'.format(str(pi)).encode(), result)
+
+    def test_that_paths_are_stringified(self) -> None:
+        path = pathlib.Path('/home/user/file.txt')
+        _, result = self.transcoder.to_bytes({'path': path})
+        self.assertEqual(b'path=%2Fhome%2Fuser%2Ffile.txt', result)
 
     def test_that_dataclasses_are_serialized(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
