@@ -34,13 +34,6 @@ import logging
 import typing
 import warnings
 
-try:
-    from typing import Literal
-except ImportError:  # pragma: no cover
-    # "ignore" is required to avoid an incompatible import
-    # error due to different bindings of _SpecialForm
-    from typing_extensions import Literal  # type: ignore
-
 from ietfparse import algorithms, datastructures, errors, headers
 from tornado import web
 
@@ -190,13 +183,14 @@ def install(
 
 @typing.overload
 def get_settings(
-    application: type_info.HasSettings, force_instance: Literal[False] = False
+    application: type_info.HasSettings,
+    force_instance: typing.Literal[False] = False,
 ) -> typing.Union[ContentSettings, None]: ...  # pragma: no cover
 
 
 @typing.overload
 def get_settings(
-    application: type_info.HasSettings, force_instance: Literal[True]
+    application: type_info.HasSettings, force_instance: typing.Literal[True]
 ) -> ContentSettings: ...  # pragma: no cover
 
 
