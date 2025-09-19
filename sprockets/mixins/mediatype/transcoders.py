@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import collections.abc
 import dataclasses
+import decimal
 import json
 import string
 import typing
@@ -38,7 +39,7 @@ _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
 
-def _coerce_value(obj: type_info.Serializable) -> str | bytes | None:
+def _coerce_value(obj: type_info.Serializable) -> str | bytes | float | None:
     """Common value coercion used for JSON & MsgPack.
 
     Converts special types to their serializable representations:
@@ -46,6 +47,7 @@ def _coerce_value(obj: type_info.Serializable) -> str | bytes | None:
     - bytearray -> bytes
     - memoryview -> bytes
     - DefinesIsoFormat -> str (ISO format)
+    - decimal.Decimal -> float
 
     Returns None if the object type is not handled by this function.
     """
@@ -57,6 +59,8 @@ def _coerce_value(obj: type_info.Serializable) -> str | bytes | None:
         return obj.tobytes()
     if isinstance(obj, type_info.DefinesIsoFormat):
         return obj.isoformat()
+    if isinstance(obj, decimal.Decimal):
+        return float(obj)
     return None
 
 
@@ -118,7 +122,7 @@ class JSONTranscoder(handlers.TextContentHandler):
 
     def dump_object(
         self, obj: type_info.Serializable
-    ) -> str | dict[str, object]:
+    ) -> str | dict[str, object] | float:
         """
         Called to encode unrecognized object.
 
@@ -143,6 +147,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         |                             | designator.                           |
         +-----------------------------+---------------------------------------+
         | :class:`uuid.UUID`          | Same as ``str(value)``                |
+        +-----------------------------+---------------------------------------+
+        | :class:`decimal.Decimal`    | Same as ``float(value)``              |
         +-----------------------------+---------------------------------------+
         | :class:`pydantic.BaseModel` | `value.model_dump(mode='python')``    |
         +-----------------------------+---------------------------------------+
@@ -236,6 +242,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         +-----------------------------------+-------------------------------+
         | :class:`datetime.datetime`        | Converted to String           |
         +-----------------------------------+-------------------------------+
+        | :class:`decimal.Decimal`          | `float family`_               |
+        +-----------------------------------+-------------------------------+
         | :class:`pydantic.BaseModel`       | Recursively encoded after     |
         |                                   | calling ``model_dump()`` in   |
         |                                   | "python" mode.                |
@@ -266,6 +274,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
             return datum
 
         if (result := _coerce_value(datum)) is not None:
+            if isinstance(result, self.PACKABLE_TYPES):
+                return result
             datum = result
 
         if isinstance(datum, (bytes, str)):
@@ -334,7 +344,8 @@ class FormUrlEncodedTranscoder:
     +-----------------------------+----------------------------------------+
     | :data:`None`                | the empty string                       |
     +-----------------------------+----------------------------------------+
-    | numbers                     | ``str(n)``                             |
+    | numbers including           | ``str(n)``                             |
+    | :class:`decimal.Decimal`    |                                        |
     +-----------------------------+----------------------------------------+
     | byte sequences              | percent-encoded bytes                  |
     +-----------------------------+----------------------------------------+

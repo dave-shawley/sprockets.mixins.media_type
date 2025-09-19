@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import decimal
 import json
 import math
 import os
@@ -401,6 +402,12 @@ class JSONTranscoderTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.transcoder.dumps(object())  # type: ignore[arg-type]
 
+    def test_that_decimals_are_converted_to_floats(self) -> None:
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        dumped = self.transcoder.dumps({'n': pi})
+        loaded = json.loads(dumped)
+        self.assertEqual(loaded['n'], float(pi))
+
 
 class ContentSettingsTests(unittest.TestCase):
     def test_that_handler_listed_in_available_content_types(self) -> None:
@@ -638,6 +645,13 @@ class MsgPackTranscoderTests(unittest.TestCase):
         ):
             transcoders.MsgPackTranscoder()
 
+    def test_that_decimals_are_converted_to_floats(self) -> None:
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        dumped = self.transcoder.packb(pi)
+        # 0xCB -> 8 byte IEEE float in big endian order
+        self.assertEqual(0xCB, dumped[0])
+        self.assertEqual(struct.pack('>d', float(pi)), dumped[1:])
+
 
 class FormUrlEncodingTranscoderTests(unittest.TestCase):
     transcoder: type_info.Transcoder
@@ -806,6 +820,11 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual(
             b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
         )
+
+    def test_that_decimals_are_stringified(self) -> None:
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        _, result = self.transcoder.to_bytes({'pi': pi})
+        self.assertEqual('pi={}'.format(str(pi)).encode(), result)
 
 
 class Item(pydantic.BaseModel):

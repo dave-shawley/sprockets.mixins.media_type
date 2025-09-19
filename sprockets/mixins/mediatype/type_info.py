@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import decimal
 import typing
 import uuid
 from collections import abc
@@ -50,6 +51,7 @@ SerializablePrimitives = (
     bool,
     bytearray,
     bytes,
+    decimal.Decimal,
     float,
     int,
     memoryview,
@@ -64,6 +66,7 @@ Serializable: typing.TypeAlias = typing.Union[
     bool,
     bytearray,
     bytes,
+    decimal.Decimal,
     float,
     int,
     memoryview,
