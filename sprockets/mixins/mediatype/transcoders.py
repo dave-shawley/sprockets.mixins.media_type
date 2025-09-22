@@ -68,6 +68,7 @@ def _coerce_value(  # noqa: PLR0911
     - ipaddress.IPv4Address -> str
     - ipaddress.IPv6Address -> str
     - array.array -> list
+    - named tuples -> tuple
 
     Returns None if the object type is not handled by this function.
     """
@@ -171,6 +172,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         +-----------------------------+---------------------------------------+
         | :class:`array.array`        | Same as ``list(value.tolist())``      |
         +-----------------------------+---------------------------------------+
+        | Named tuples                | Same as ``tuple``                     |
+        +-----------------------------+---------------------------------------+
         : Dataclasses                 | :func:`dataclasses.asdict`            |
         +-----------------------------+---------------------------------------+
         | :class:`datetime.datetime`  | ISO8601 formatted timestamp in the    |
@@ -273,6 +276,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`memoryview`               | `bin family`_                 |
         +-----------------------------------+-------------------------------+
         | :class:`array.array`              | `array family`_               |
+        +-----------------------------------+-------------------------------+
+        | Named tuples                      | `map family`_                 |
         +-----------------------------------+-------------------------------+
         | :class:`collections.abc.Sequence` | `array family`_               |
         +-----------------------------------+-------------------------------+
@@ -396,6 +401,8 @@ class FormUrlEncodedTranscoder:
     | :class:`decimal.Decimal`       |                                        |
     +--------------------------------+----------------------------------------+
     | :class:`array.array`           | URL-encoded array elements             |
+    +--------------------------------+----------------------------------------+
+    | Named tuples                   | URL-encoded tuple elements             |
     +--------------------------------+----------------------------------------+
     | byte sequences                 | percent-encoded bytes                  |
     +--------------------------------+----------------------------------------+

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import array
 import base64
+import collections
 import dataclasses
 import datetime
 import decimal
@@ -44,6 +45,14 @@ class Event:
 
     event: str
     when: datetime.datetime
+
+
+Point = collections.namedtuple('Point', ['x', 'y'])
+
+
+class PointClass(typing.NamedTuple):
+    x: float
+    y: float
 
 
 def pack_string(obj: object) -> bytes:
@@ -444,6 +453,17 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(arr.tolist(), loaded['arr'])
 
+    def test_that_named_tuples_are_treated_as_sequences(self) -> None:
+        point = Point(3, 4)
+        dumped = self.transcoder.dumps(point)
+        loaded = json.loads(dumped)
+        self.assertEqual([3, 4], loaded)
+
+        typed_point = PointClass(3, 4)
+        dumped = self.transcoder.dumps(typed_point)
+        loaded = json.loads(dumped)
+        self.assertEqual([3, 4], loaded)
+
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
@@ -721,6 +741,17 @@ class MsgPackTranscoderTests(unittest.TestCase):
         unpacked = self.transcoder.unpackb(dumped)
         self.assertEqual(arr.tolist(), unpacked)
 
+    def test_that_named_tuples_are_treated_as_sequences(self) -> None:
+        point = Point(3, 4)
+        dumped = self.transcoder.packb(point)
+        unpacked = umsgpack.unpackb(dumped)
+        self.assertEqual([3, 4], unpacked)
+
+        typed_point = PointClass(3, 4)
+        dumped = self.transcoder.packb(typed_point)
+        unpacked = umsgpack.unpackb(dumped)
+        self.assertEqual([3, 4], unpacked)
+
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
@@ -926,6 +957,17 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         arr = array.array('i', [1, 2, 3])
         _, result = transcoder.to_bytes({'arr': arr})
         self.assertEqual(b'arr=1&arr=2&arr=3', result)
+
+    def test_that_named_tuples_are_treated_as_sequences(self) -> None:
+        transcoder = transcoders.FormUrlEncodedTranscoder()
+        transcoder.options.encode_sequences = True
+        point = Point(3, 4)
+        _, result = transcoder.to_bytes({'point': point})
+        self.assertEqual(b'point=3&point=4', result)
+
+        typed_point = PointClass(3, 4)
+        _, result = transcoder.to_bytes({'point': typed_point})
+        self.assertEqual(b'point=3&point=4', result)
 
     def test_that_dataclasses_are_serialized(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
