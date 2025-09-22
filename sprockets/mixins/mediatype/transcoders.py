@@ -9,6 +9,7 @@ Bundled media type transcoders.
 
 from __future__ import annotations
 
+import array
 import base64
 import collections.abc
 import dataclasses
@@ -43,7 +44,17 @@ _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
 def _coerce_value(  # noqa: PLR0911
     obj: type_info.Serializable,
-) -> str | bytes | float | None | dict[str, object]:
+) -> (
+    bytes
+    | dict[str, object]
+    | float
+    | list[float]
+    | list[int]
+    | list[object]
+    | list[str]
+    | None
+    | str
+):
     """Common value coercion used for JSON & MsgPack.
 
     Converts special types to their serializable representations:
@@ -56,6 +67,7 @@ def _coerce_value(  # noqa: PLR0911
     - pathlib.Path -> str
     - ipaddress.IPv4Address -> str
     - ipaddress.IPv6Address -> str
+    - array.array -> list
 
     Returns None if the object type is not handled by this function.
     """
@@ -75,6 +87,8 @@ def _coerce_value(  # noqa: PLR0911
         return str(obj)
     if isinstance(obj, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         return str(obj)
+    if isinstance(obj, array.array):
+        return typing.cast('type_info.ArrayPrimitives', obj).tolist()
     return None
 
 
@@ -155,6 +169,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         | :class:`bytearray`,         |                                       |
         | :class:`memoryview`         |                                       |
         +-----------------------------+---------------------------------------+
+        | :class:`array.array`        | Same as ``list(value.tolist())``      |
+        +-----------------------------+---------------------------------------+
         : Dataclasses                 | :func:`dataclasses.asdict`            |
         +-----------------------------+---------------------------------------+
         | :class:`datetime.datetime`  | ISO8601 formatted timestamp in the    |
@@ -179,6 +195,8 @@ class JSONTranscoder(handlers.TextContentHandler):
         if (result := _coerce_value(obj)) is not None:
             if isinstance(result, bytes):
                 return base64.b64encode(result).decode('ASCII')
+            if isinstance(result, list):
+                return result  # type: ignore[return-value]
             return result
         if pydantic is not None and isinstance(obj, pydantic.BaseModel):
             return obj.model_dump(mode='python')
@@ -253,6 +271,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`bytearray`                | `bin family`_                 |
         +-----------------------------------+-------------------------------+
         | :class:`memoryview`               | `bin family`_                 |
+        +-----------------------------------+-------------------------------+
+        | :class:`array.array`              | `array family`_               |
         +-----------------------------------+-------------------------------+
         | :class:`collections.abc.Sequence` | `array family`_               |
         +-----------------------------------+-------------------------------+
@@ -358,39 +378,41 @@ class FormUrlEncodedTranscoder:
     sequences of pairs and encodes both the name and value.  The
     following table describes how each supported type is encoded.
 
-    +-----------------------------+----------------------------------------+
-    | Value / Type                | Encoding                               |
-    +=============================+========================================+
-    | character strings           | UTF-8 codepoints before percent-       |
-    |                             | encoding the resulting bytes           |
-    +-----------------------------+----------------------------------------+
-    | space character             | ``%20`` or ``+``                       |
-    +-----------------------------+----------------------------------------+
-    | :data:`False`               | ``false``                              |
-    +-----------------------------+----------------------------------------+
-    | :data:`True`                | ``true``                               |
-    +-----------------------------+----------------------------------------+
-    | :data:`None`                | the empty string                       |
-    +-----------------------------+----------------------------------------+
-    | numbers including           | ``str(n)``                             |
-    | :class:`decimal.Decimal`    |                                        |
-    +-----------------------------+----------------------------------------+
-    | byte sequences              | percent-encoded bytes                  |
-    +-----------------------------+----------------------------------------+
-    | :class:`uuid.UUID`          | ``str(u)``                             |
-    +-----------------------------+----------------------------------------+
-    | :class:`pathlib.Path`       | ``str(p)``                             |
-    +-----------------------------+----------------------------------------+
-    | :class:`ipaddress.IPv4Address` | ``str(ip)``                         |
-    +-----------------------------+----------------------------------------+
-    | :class:`ipaddress.IPv6Address` | ``str(ip)``                         |
-    +-----------------------------+----------------------------------------+
-    | :class:`datetime.datetime`  | result of calling                      |
-    |                             | :meth:`~datetime.datetime.isoformat`   |
-    +-----------------------------+----------------------------------------+
-    | :class:`pydantic.BaseModel` | encoded after calling ``model_dump()`` |
-    |                             | in "python" mode                       |
-    +-----------------------------+----------------------------------------+
+    +--------------------------------+----------------------------------------+
+    | Value / Type                   | Encoding                               |
+    +================================+========================================+
+    | character strings              | UTF-8 codepoints before percent-       |
+    |                                | encoding the resulting bytes           |
+    +--------------------------------+----------------------------------------+
+    | space character                | ``%20`` or ``+``                       |
+    +--------------------------------+----------------------------------------+
+    | :data:`False`                  | ``false``                              |
+    +--------------------------------+----------------------------------------+
+    | :data:`True`                   | ``true``                               |
+    +--------------------------------+----------------------------------------+
+    | :data:`None`                   | the empty string                       |
+    +--------------------------------+----------------------------------------+
+    | numbers including              | ``str(n)``                             |
+    | :class:`decimal.Decimal`       |                                        |
+    +--------------------------------+----------------------------------------+
+    | :class:`array.array`           | URL-encoded array elements             |
+    +--------------------------------+----------------------------------------+
+    | byte sequences                 | percent-encoded bytes                  |
+    +--------------------------------+----------------------------------------+
+    | :class:`uuid.UUID`             | ``str(u)``                             |
+    +--------------------------------+----------------------------------------+
+    | :class:`pathlib.Path`          | ``str(p)``                             |
+    +--------------------------------+----------------------------------------+
+    | :class:`ipaddress.IPv4Address` | ``str(ip)``                            |
+    +--------------------------------+----------------------------------------+
+    | :class:`ipaddress.IPv6Address` | ``str(ip)``                            |
+    +--------------------------------+----------------------------------------+
+    | :class:`datetime.datetime`     | result of calling                      |
+    |                                | :meth:`~datetime.datetime.isoformat`   |
+    +--------------------------------+----------------------------------------+
+    | :class:`pydantic.BaseModel`    | encoded after calling ``model_dump()`` |
+    |                                | in "python" mode                       |
+    +--------------------------------+----------------------------------------+
 
     https://url.spec.whatwg.org/#application/x-www-form-urlencoded
 

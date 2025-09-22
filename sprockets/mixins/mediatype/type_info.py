@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import array
 import decimal
 import ipaddress
 import pathlib
+import sys
 import typing
 import uuid
 from collections import abc
@@ -72,9 +74,19 @@ SerializablePrimitives = (
 )
 """Use this with isinstance to identify simple values."""
 
+if sys.version_info >= (3, 12):
+    ArrayPrimitives: typing.TypeAlias = (
+        array.array[float] | array.array[int] | array.array[str]
+    )
+elif sys.version_info >= (3, 8):
+    ArrayPrimitives: typing.TypeAlias = array.array
+else:
+    raise NotImplementedError('Array primitives not supported on this version')
+
 Serializable: typing.TypeAlias = typing.Union[
     DefinesIsoFormat,
     None,
+    ArrayPrimitives,
     bool,
     bytearray,
     bytes,

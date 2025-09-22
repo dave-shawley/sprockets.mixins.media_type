@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import array
 import base64
 import dataclasses
 import datetime
@@ -437,6 +438,12 @@ class JSONTranscoderTests(unittest.TestCase):
         loaded = json.loads(dumped)
         self.assertEqual(loaded['addr'], str(addr))
 
+    def test_that_arrays_are_converted_to_lists(self) -> None:
+        arr = array.array('i', [1, 2, 3, 4, 5])
+        dumped = self.transcoder.dumps({'arr': arr})
+        loaded = json.loads(dumped)
+        self.assertEqual(arr.tolist(), loaded['arr'])
+
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
@@ -708,6 +715,12 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
         self.assertEqual(dumped, pack_string(str(addr)))
 
+    def test_that_arrays_are_converted_to_lists(self) -> None:
+        arr = array.array('i', [1, 2, 3, 4, 5])
+        dumped = self.transcoder.packb(arr)
+        unpacked = self.transcoder.unpackb(dumped)
+        self.assertEqual(arr.tolist(), unpacked)
+
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
@@ -906,6 +919,13 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         addr = ipaddress.IPv6Address('2001:db8::1')
         _, result = self.transcoder.to_bytes({'addr': addr})
         self.assertEqual(b'addr=2001%3Adb8%3A%3A1', result)
+
+    def test_that_arrays_are_serialized_as_sequences(self) -> None:
+        transcoder = transcoders.FormUrlEncodedTranscoder()
+        transcoder.options.encode_sequences = True
+        arr = array.array('i', [1, 2, 3])
+        _, result = transcoder.to_bytes({'arr': arr})
+        self.assertEqual(b'arr=1&arr=2&arr=3', result)
 
     def test_that_dataclasses_are_serialized(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
