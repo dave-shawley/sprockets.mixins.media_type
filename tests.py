@@ -6,6 +6,8 @@ import collections
 import dataclasses
 import datetime
 import decimal
+import enum
+import http
 import ipaddress
 import json
 import math
@@ -13,6 +15,7 @@ import os
 import pathlib
 import pickle
 import struct
+import sys
 import typing
 import unittest.mock
 import urllib.parse
@@ -53,6 +56,20 @@ Point = collections.namedtuple('Point', ['x', 'y'])
 class PointClass(typing.NamedTuple):
     x: float
     y: float
+
+
+if sys.version_info >= (3, 11):  # pragma: no cover
+
+    class Color(enum.StrEnum):
+        RED = 'red'
+        GREEN = 'green'
+        BLUE = 'blue'
+else:  # pragma: no cover
+
+    class Color(enum.Enum):
+        RED = 'red'
+        GREEN = 'green'
+        BLUE = 'blue'
 
 
 def pack_string(obj: object) -> bytes:
@@ -473,6 +490,19 @@ class JSONTranscoderTests(unittest.TestCase):
         self.assertEqual(expected.event, loaded['event'])
         self.assertEqual(expected.when.isoformat(), loaded['when'])
 
+    def test_enum_support(self) -> None:
+        status = http.HTTPStatus.OK
+        dumped = self.transcoder.dumps(status)
+        int_value = unwrap_as(int, json.loads(dumped))
+        self.assertEqual(status.value, int_value)
+        self.assertEqual(status, http.HTTPStatus(int_value))
+
+        colors = (Color.RED, Color.GREEN)
+        dumped = self.transcoder.dumps(colors)
+        list_value = unwrap_as(list, json.loads(dumped))
+        self.assertEqual([c.value for c in colors], list_value)
+        self.assertEqual(list(colors), [Color(c) for c in list_value])
+
 
 class ContentSettingsTests(unittest.TestCase):
     def test_that_handler_listed_in_available_content_types(self) -> None:
@@ -761,6 +791,19 @@ class MsgPackTranscoderTests(unittest.TestCase):
             b'\x82\xa5event\xb2Something Happened\xa4when' + encoded_date,
             dumped,
         )
+
+    def test_enum_support(self) -> None:
+        status = http.HTTPStatus.OK
+        dumped = self.transcoder.packb(status)
+        int_value = unwrap_as(int, umsgpack.unpackb(dumped))
+        self.assertEqual(status.value, int_value)
+        self.assertEqual(status, http.HTTPStatus(int_value))
+
+        colors = (Color.RED, Color.GREEN)
+        dumped = self.transcoder.packb(colors)
+        list_value = unwrap_as(list, umsgpack.unpackb(dumped))
+        self.assertEqual([c.value for c in colors], list_value)
+        self.assertEqual(list(colors), [Color(c) for c in list_value])
 
 
 class FormUrlEncodingTranscoderTests(unittest.TestCase):

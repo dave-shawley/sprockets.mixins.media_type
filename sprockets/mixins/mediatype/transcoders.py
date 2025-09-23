@@ -14,6 +14,7 @@ import base64
 import collections.abc
 import dataclasses
 import decimal
+import enum
 import ipaddress
 import json
 import pathlib
@@ -42,7 +43,7 @@ _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
 
-def _coerce_value(  # noqa: PLR0911
+def _coerce_value(  # noqa: C901, PLR0911
     obj: type_info.Serializable,
 ) -> (
     bytes
@@ -90,6 +91,8 @@ def _coerce_value(  # noqa: PLR0911
         return str(obj)
     if isinstance(obj, array.array):
         return typing.cast('type_info.ArrayPrimitives', obj).tolist()
+    if isinstance(obj, enum.Enum):
+        return obj.value
     return None
 
 
