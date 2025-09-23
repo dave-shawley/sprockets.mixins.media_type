@@ -503,6 +503,12 @@ class JSONTranscoderTests(unittest.TestCase):
         self.assertEqual([c.value for c in colors], list_value)
         self.assertEqual(list(colors), [Color(c) for c in list_value])
 
+    def test_that_sets_are_encoded_as_lists(self) -> None:
+        numbers = {1, 2, 3, 4, 5}
+        dumped = self.transcoder.dumps(numbers)
+        list_value = unwrap_as(list, json.loads(dumped))
+        self.assertEqual(list(numbers), list_value)
+
 
 class ContentSettingsTests(unittest.TestCase):
     def test_that_handler_listed_in_available_content_types(self) -> None:

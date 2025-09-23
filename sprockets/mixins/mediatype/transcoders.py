@@ -95,6 +95,8 @@ def _coerce_value(  # noqa: PLR0911
         return coercion(obj)
     if isinstance(obj, type_info.DefinesIsoFormat):
         return obj.isoformat()
+    if isinstance(obj, collections.abc.Set):
+        return list(obj)
     if dataclasses.is_dataclass(obj):
         return dataclasses.asdict(obj)
     if isinstance(obj, array.array):
