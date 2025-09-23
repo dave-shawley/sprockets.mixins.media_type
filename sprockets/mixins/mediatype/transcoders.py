@@ -42,20 +42,37 @@ _FORM_URLENCODING.update({ord(c): c for c in '*-_.'})
 _FORM_URLENCODING_PLUS = _FORM_URLENCODING.copy()
 _FORM_URLENCODING_PLUS[ord(' ')] = '+'
 
+CoercedValue = typing.Union[
+    bytes,
+    dict[str, object],
+    float,
+    list[float],
+    list[int],
+    list[object],
+    list[str],
+    None,
+    str,
+]
 
-def _coerce_value(  # noqa: C901, PLR0911
+_COERCIONS: dict[type, typing.Callable[[object], CoercedValue] | type] = {
+    uuid.UUID: str,
+    bytearray: bytes,
+    decimal.Decimal: float,
+    memoryview: lambda val: typing.cast('memoryview', val).tobytes(),
+    ipaddress.IPv4Address: str,
+    ipaddress.IPv6Address: str,
+}
+"""Lookup table for coercions to be applied to values by type.
+
+This table maps **non-polymorphic** type matches to the coercion
+function to be applied.  Polymorphic types are handled by isinstance
+checks in the :func:`_coerce_value` function.
+"""
+
+
+def _coerce_value(  # noqa: PLR0911
     obj: type_info.Serializable,
-) -> (
-    bytes
-    | dict[str, object]
-    | float
-    | list[float]
-    | list[int]
-    | list[object]
-    | list[str]
-    | None
-    | str
-):
+) -> CoercedValue:
     """Common value coercion used for JSON & MsgPack.
 
     Converts special types to their serializable representations:
@@ -73,26 +90,21 @@ def _coerce_value(  # noqa: C901, PLR0911
 
     Returns None if the object type is not handled by this function.
     """
-    if isinstance(obj, uuid.UUID):
-        return str(obj)
-    if isinstance(obj, bytearray):
-        return bytes(obj)
-    if isinstance(obj, memoryview):
-        return obj.tobytes()
+    coercion = _COERCIONS.get(type(obj))
+    if coercion is not None:
+        return coercion(obj)
     if isinstance(obj, type_info.DefinesIsoFormat):
         return obj.isoformat()
     if dataclasses.is_dataclass(obj):
         return dataclasses.asdict(obj)
-    if isinstance(obj, decimal.Decimal):
-        return float(obj)
-    if isinstance(obj, pathlib.Path):
-        return str(obj)
-    if isinstance(obj, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
-        return str(obj)
     if isinstance(obj, array.array):
         return typing.cast('type_info.ArrayPrimitives', obj).tolist()
     if isinstance(obj, enum.Enum):
         return obj.value
+    # NB - Path is usually implemented as platform-specific subclasses,
+    # so we need to use isinstance instead of an exact match.
+    if isinstance(obj, pathlib.Path):
+        return str(obj)
     return None
 
 
