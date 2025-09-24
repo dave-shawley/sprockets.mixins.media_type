@@ -407,12 +407,18 @@ class JSONTranscoderTests(unittest.TestCase):
         dumped = self.transcoder.dumps(obj)
         self.assertEqual(dumped.replace(' ', ''), '{"id":"%s"}' % obj['id'])
 
-    def test_that_datetimes_are_dumped_in_isoformat(self) -> None:
-        obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
-        dumped = self.transcoder.dumps(obj)
-        self.assertEqual(
-            dumped.replace(' ', ''), '{"now":"%s"}' % obj['now'].isoformat()
-        )
+    def test_that_date_objects_are_dumped_in_isoformat(self) -> None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        test_cases: list[datetime.datetime | datetime.date | datetime.time]
+        test_cases = [now, now.date(), now.time()]
+        for obj in test_cases:
+            dumped = self.transcoder.dumps({'value': obj})
+            loaded = json.loads(dumped)
+            self.assertEqual(
+                obj.isoformat(),
+                loaded['value'],
+                msg=f'Failed for {type(obj)}: {obj}',
+            )
 
     def test_that_tzaware_datetimes_include_tzoffset(self) -> None:
         obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
@@ -692,11 +698,18 @@ class MsgPackTranscoderTests(unittest.TestCase):
         self.assertEqual(self.transcoder.unpackb(dumped), str(uid))
         self.assertEqual(dumped, pack_string(uid))
 
-    def test_that_datetimes_are_dumped_in_isoformat(self) -> None:
+    def test_that_date_objects_are_dumped_in_isoformat(self) -> None:
         now = datetime.datetime.now(datetime.timezone.utc)
-        dumped = self.transcoder.packb(now)
-        self.assertEqual(self.transcoder.unpackb(dumped), now.isoformat())
-        self.assertEqual(dumped, pack_string(now.isoformat()))
+        test_cases: list[datetime.datetime | datetime.date | datetime.time]
+        test_cases = [now, now.date(), now.time()]
+        for obj in test_cases:
+            dumped = self.transcoder.packb(obj)
+            self.assertEqual(self.transcoder.unpackb(dumped), obj.isoformat())
+            self.assertEqual(
+                dumped,
+                pack_string(obj.isoformat()),
+                msg=f'Failed for {type(obj)}: {obj}',
+            )
 
     def test_that_tzaware_datetimes_include_tzoffset(self) -> None:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -860,6 +873,8 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
                 'float': math.pi,
                 'string': 'percent quoted',
                 'datetime': now,
+                'date': now.date(),
+                'time': now.time(),
                 'id': id_val,
             }
         )
@@ -872,6 +887,8 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
                     f'float={math.pi}',
                     'string=percent%20quoted',
                     'datetime=' + urllib.parse.quote(now.isoformat()),
+                    'date=' + urllib.parse.quote(now.date().isoformat()),
+                    'time=' + urllib.parse.quote(now.time().isoformat()),
                     f'id={id_val}',
                 ]
             ),
