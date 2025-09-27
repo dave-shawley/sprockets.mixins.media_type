@@ -10,7 +10,6 @@ import enum
 import http
 import ipaddress
 import json
-import math
 import os
 import pathlib
 import pickle
@@ -397,123 +396,105 @@ class MixinCacheTests(unittest.TestCase):
         self.assertEqual(1, self.transcoder.from_bytes.call_count)
 
 
-class JSONTranscoderTests(unittest.TestCase):
+class TypeCoverageTestCase(unittest.TestCase):
+    test_cases: list[
+        tuple[
+            type_info.Serializable,
+            bytes | str | int | float | bool | None | list[object],
+        ]
+    ]
+    transcoder: type_info.Transcoder
+
+    def setUp(self) -> None:
+        super().setUp()
+        now = datetime.datetime.now(datetime.timezone.utc)
+        some_id = uuid.uuid4()
+        self.test_cases = [
+            (12, 12),
+            (12.3, 12.3),
+            (' string with spaces ', ' string with spaces '),
+            (now, now.isoformat()),
+            (now.date(), now.date().isoformat()),
+            (now.time(), now.time().isoformat()),
+            (some_id, str(some_id)),
+            (True, True),
+            (False, False),
+            (None, None),
+            (pathlib.Path('/home/user/file.txt'), '/home/user/file.txt'),
+            (ipaddress.IPv4Address('192.168.1.1'), '192.168.1.1'),
+            (ipaddress.IPv6Address('2001:db8::1'), '2001:db8::1'),
+        ]
+
+    def format_value(self, value: object) -> object:
+        return value
+
+    def test_serializable_types(self) -> None:
+        if not hasattr(self, 'transcoder'):
+            self.skipTest('Transcoder not available')
+        for serializable, value in self.test_cases:
+            expected = self.format_value(value)
+            dict_value = {'value': serializable}
+            _, encoded = self.transcoder.to_bytes(dict_value)
+            decoded = unwrap_as(dict, self.transcoder.from_bytes(encoded))
+            actual = decoded['value']
+            self.assertEqual(
+                expected,
+                actual,
+                msg=f'Failed for {type(serializable).__name__}',
+            )
+            self.assertIsInstance(
+                actual,
+                type(expected),
+                msg=f'Wrong type generated for {type(serializable).__name__}',
+            )
+
+
+class JSONTranscoderTests(TypeCoverageTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.transcoder = transcoders.JSONTranscoder()
-
-    def test_that_uuids_are_dumped_as_strings(self) -> None:
-        obj = {'id': uuid.uuid4()}
-        dumped = self.transcoder.dumps(obj)
-        self.assertEqual(dumped.replace(' ', ''), '{"id":"%s"}' % obj['id'])
-
-    def test_that_date_objects_are_dumped_in_isoformat(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        test_cases: list[datetime.datetime | datetime.date | datetime.time]
-        test_cases = [now, now.date(), now.time()]
-        for obj in test_cases:
-            dumped = self.transcoder.dumps({'value': obj})
-            loaded = json.loads(dumped)
-            self.assertEqual(
-                obj.isoformat(),
-                loaded['value'],
-                msg=f'Failed for {type(obj)}: {obj}',
-            )
-
-    def test_that_tzaware_datetimes_include_tzoffset(self) -> None:
-        obj = {'now': datetime.datetime.now(datetime.timezone.utc)}
-        self.assertTrue(obj['now'].isoformat().endswith('+00:00'))
-        dumped = self.transcoder.dumps(obj)
-        self.assertEqual(
-            dumped.replace(' ', ''), '{"now":"%s"}' % obj['now'].isoformat()
-        )
-
-    def test_that_bytearrays_are_base64_encoded(self) -> None:
-        payload = bytearray(os.urandom(127))
-        dumped = self.transcoder.dumps({'bin': payload})
-        self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII')
-        )
-
-    def test_that_memoryviews_are_base64_encoded(self) -> None:
-        payload = memoryview(os.urandom(127))
-        dumped = self.transcoder.dumps({'bin': payload})
-        self.assertEqual(
-            dumped, '{"bin":"%s"}' % base64.b64encode(payload).decode('ASCII')
+        ba = bytearray(os.urandom(127))
+        mv = memoryview(os.urandom(324))
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        point = Point(3, 4)
+        typed_point = PointClass(3, 4)
+        self.test_cases.extend(
+            [
+                (ba, base64.b64encode(ba).decode('ASCII')),
+                (mv, base64.b64encode(mv).decode('ASCII')),
+                (pi, float(pi)),
+                (array.array('i', [1, 2, 3, 4, 5]), [1, 2, 3, 4, 5]),
+                (point, [3, 4]),
+                (typed_point, [3, 4]),
+                ({1, 2, 3, 4, 5}, [1, 2, 3, 4, 5]),
+            ]
         )
 
     def test_that_unhandled_objects_raise_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            self.transcoder.dumps(object())  # type: ignore[arg-type]
-
-    def test_that_decimals_are_converted_to_floats(self) -> None:
-        pi = decimal.Decimal('3.142857142857142857142857143')
-        dumped = self.transcoder.dumps({'n': pi})
-        loaded = json.loads(dumped)
-        self.assertEqual(loaded['n'], float(pi))
-
-    def test_that_paths_are_converted_to_strings(self) -> None:
-        path = pathlib.Path('/home/user/file.txt')
-        dumped = self.transcoder.dumps({'path': path})
-        loaded = json.loads(dumped)
-        self.assertEqual(loaded['path'], str(path))
-
-    def test_that_ipv4_addresses_are_converted_to_strings(self) -> None:
-        addr = ipaddress.IPv4Address('192.168.1.1')
-        dumped = self.transcoder.dumps({'addr': addr})
-        loaded = json.loads(dumped)
-        self.assertEqual(loaded['addr'], str(addr))
-
-    def test_that_ipv6_addresses_are_converted_to_strings(self) -> None:
-        addr = ipaddress.IPv6Address('2001:db8::1')
-        dumped = self.transcoder.dumps({'addr': addr})
-        loaded = json.loads(dumped)
-        self.assertEqual(loaded['addr'], str(addr))
-
-    def test_that_arrays_are_converted_to_lists(self) -> None:
-        arr = array.array('i', [1, 2, 3, 4, 5])
-        dumped = self.transcoder.dumps({'arr': arr})
-        loaded = json.loads(dumped)
-        self.assertEqual(arr.tolist(), loaded['arr'])
-
-    def test_that_named_tuples_are_treated_as_sequences(self) -> None:
-        point = Point(3, 4)
-        dumped = self.transcoder.dumps(point)
-        loaded = json.loads(dumped)
-        self.assertEqual([3, 4], loaded)
-
-        typed_point = PointClass(3, 4)
-        dumped = self.transcoder.dumps(typed_point)
-        loaded = json.loads(dumped)
-        self.assertEqual([3, 4], loaded)
+            self.transcoder.to_bytes(object())  # type: ignore[arg-type]
 
     def test_that_dataclasses_are_recursively_converted_to_dicts(self) -> None:
         expected = Event(
             'Something Happened', datetime.datetime.now(datetime.timezone.utc)
         )
-        dumped = self.transcoder.dumps(expected)
+        _, dumped = self.transcoder.to_bytes(expected)
         loaded = json.loads(dumped)
         self.assertEqual(expected.event, loaded['event'])
         self.assertEqual(expected.when.isoformat(), loaded['when'])
 
     def test_enum_support(self) -> None:
         status = http.HTTPStatus.OK
-        dumped = self.transcoder.dumps(status)
+        _, dumped = self.transcoder.to_bytes(status)
         int_value = unwrap_as(int, json.loads(dumped))
         self.assertEqual(status.value, int_value)
         self.assertEqual(status, http.HTTPStatus(int_value))
 
         colors = (Color.RED, Color.GREEN)
-        dumped = self.transcoder.dumps(colors)
+        _, dumped = self.transcoder.to_bytes(colors)
         list_value = unwrap_as(list, json.loads(dumped))
         self.assertEqual([c.value for c in colors], list_value)
         self.assertEqual(list(colors), [Color(c) for c in list_value])
-
-    def test_that_sets_are_encoded_as_lists(self) -> None:
-        numbers = {1, 2, 3, 4, 5}
-        dumped = self.transcoder.dumps(numbers)
-        list_value = unwrap_as(list, json.loads(dumped))
-        self.assertEqual(list(numbers), list_value)
 
 
 class ContentSettingsTests(unittest.TestCase):
@@ -633,119 +614,86 @@ class ContentFunctionTests(unittest.TestCase):
         self.assertIs(content.get_settings(self.context), settings)
 
 
-class MsgPackTranscoderTests(unittest.TestCase):
+class MsgPackTranscoderTests(TypeCoverageTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.transcoder = transcoders.MsgPackTranscoder()
+        random_bytes = os.urandom(127)
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        self.test_cases.extend(
+            [
+                (array.array('i', [1, 2, 3, 4, 5]), [1, 2, 3, 4, 5]),
+                (Point(1, 2), [1, 2]),
+                (PointClass(3, 4), [3, 4]),
+                (http.HTTPStatus.OK, 200),
+                (
+                    [Color.RED, Color.GREEN],
+                    [Color.RED.value, Color.GREEN.value],
+                ),
+                (random_bytes, random_bytes),
+                (bytearray(random_bytes), random_bytes),
+                (memoryview(random_bytes), random_bytes),
+                (pi, float(pi)),
+            ]
+        )
+
+    def assert_packed_value_equals(
+        self, value: type_info.Serializable, expected: bytes
+    ) -> None:
+        _, actual = self.transcoder.to_bytes(value)
+        self.assertEqual(expected, actual)
 
     def test_that_strings_are_dumped_as_strings(self) -> None:
-        dumped = self.transcoder.packb('foo')
-        self.assertEqual(self.transcoder.unpackb(dumped), 'foo')
-        self.assertEqual(dumped, pack_string('foo'))
+        self.assert_packed_value_equals('foo', pack_string('foo'))
 
     def test_that_none_is_packed_as_nil_byte(self) -> None:
-        self.assertEqual(self.transcoder.packb(None), b'\xc0')
+        self.assert_packed_value_equals(None, b'\xc0')
 
     def test_that_bools_are_dumped_appropriately(self) -> None:
-        self.assertEqual(self.transcoder.packb(False), b'\xc2')
-        self.assertEqual(self.transcoder.packb(True), b'\xc3')
+        self.assert_packed_value_equals(False, b'\xc2')
+        self.assert_packed_value_equals(True, b'\xc3')
 
     def test_that_ints_are_packed_appropriately(self) -> None:
-        self.assertEqual(self.transcoder.packb((2**7) - 1), b'\x7f')
-        self.assertEqual(self.transcoder.packb(2**7), b'\xcc\x80')
-        self.assertEqual(self.transcoder.packb(2**8), b'\xcd\x01\x00')
-        self.assertEqual(self.transcoder.packb(2**16), b'\xce\x00\x01\x00\x00')
-        self.assertEqual(
-            self.transcoder.packb(2**32),
-            b'\xcf\x00\x00\x00\x01\x00\x00\x00\x00',
+        self.assert_packed_value_equals(2**7 - 1, b'\x7f')
+        self.assert_packed_value_equals(2**7, b'\xcc\x80')
+        self.assert_packed_value_equals(2**8, b'\xcd\x01\x00')
+        self.assert_packed_value_equals(2**16, b'\xce\x00\x01\x00\x00')
+        self.assert_packed_value_equals(
+            2**32, b'\xcf\x00\x00\x00\x01\x00\x00\x00\x00'
         )
 
     def test_that_negative_ints_are_packed_accordingly(self) -> None:
-        self.assertEqual(self.transcoder.packb(-(2**0)), b'\xff')
-        self.assertEqual(self.transcoder.packb(-(2**5)), b'\xe0')
-        self.assertEqual(self.transcoder.packb(-(2**7)), b'\xd0\x80')
-        self.assertEqual(self.transcoder.packb(-(2**15)), b'\xd1\x80\x00')
-        self.assertEqual(
-            self.transcoder.packb(-(2**31)), b'\xd2\x80\x00\x00\x00'
-        )
-        self.assertEqual(
-            self.transcoder.packb(-(2**63)),
-            b'\xd3\x80\x00\x00\x00\x00\x00\x00\x00',
+        self.assert_packed_value_equals(-(2**0), b'\xff')
+        self.assert_packed_value_equals(-(2**5), b'\xe0')
+        self.assert_packed_value_equals(-(2**7), b'\xd0\x80')
+        self.assert_packed_value_equals(-(2**15), b'\xd1\x80\x00')
+        self.assert_packed_value_equals(-(2**31), b'\xd2\x80\x00\x00\x00')
+        self.assert_packed_value_equals(
+            -(2**63), b'\xd3\x80\x00\x00\x00\x00\x00\x00\x00'
         )
 
     def test_that_lists_are_treated_as_arrays(self) -> None:
-        dumped = self.transcoder.packb([])
-        self.assertEqual(self.transcoder.unpackb(dumped), [])
-        self.assertEqual(dumped, b'\x90')
+        self.assert_packed_value_equals([], b'\x90')
 
     def test_that_tuples_are_treated_as_arrays(self) -> None:
-        dumped = self.transcoder.packb(())
-        self.assertEqual(self.transcoder.unpackb(dumped), [])
-        self.assertEqual(dumped, b'\x90')
+        self.assert_packed_value_equals((), b'\x90')
 
     def test_that_sets_are_treated_as_arrays(self) -> None:
-        dumped = self.transcoder.packb(set())
-        self.assertEqual(self.transcoder.unpackb(dumped), [])
-        self.assertEqual(dumped, b'\x90')
+        self.assert_packed_value_equals(set(), b'\x90')
 
     def test_that_unhandled_objects_raise_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            self.transcoder.packb(object())  # type: ignore[arg-type]
-
-    def test_that_uuids_are_dumped_as_strings(self) -> None:
-        uid = uuid.uuid4()
-        dumped = self.transcoder.packb(uid)
-        self.assertEqual(self.transcoder.unpackb(dumped), str(uid))
-        self.assertEqual(dumped, pack_string(uid))
-
-    def test_that_date_objects_are_dumped_in_isoformat(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        test_cases: list[datetime.datetime | datetime.date | datetime.time]
-        test_cases = [now, now.date(), now.time()]
-        for obj in test_cases:
-            dumped = self.transcoder.packb(obj)
-            self.assertEqual(self.transcoder.unpackb(dumped), obj.isoformat())
-            self.assertEqual(
-                dumped,
-                pack_string(obj.isoformat()),
-                msg=f'Failed for {type(obj)}: {obj}',
-            )
-
-    def test_that_tzaware_datetimes_include_tzoffset(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        self.assertTrue(now.isoformat().endswith('+00:00'))
-        dumped = self.transcoder.packb(now)
-        self.assertEqual(self.transcoder.unpackb(dumped), now.isoformat())
-        self.assertEqual(dumped, pack_string(now.isoformat()))
-
-    def test_that_bytes_are_sent_as_bytes(self) -> None:
-        data = bytes(os.urandom(127))
-        dumped = self.transcoder.packb(data)
-        self.assertEqual(self.transcoder.unpackb(dumped), data)
-        self.assertEqual(dumped, pack_bytes(data))
-
-    def test_that_bytearrays_are_sent_as_bytes(self) -> None:
-        data = bytearray(os.urandom(127))
-        dumped = self.transcoder.packb(data)
-        self.assertEqual(self.transcoder.unpackb(dumped), data)
-        self.assertEqual(dumped, pack_bytes(data))
-
-    def test_that_memoryviews_are_sent_as_bytes(self) -> None:
-        data = memoryview(os.urandom(127))
-        dumped = self.transcoder.packb(data)
-        self.assertEqual(self.transcoder.unpackb(dumped), data)
-        self.assertEqual(dumped, pack_bytes(data.tobytes()))
+            self.transcoder.to_bytes(object())  # type: ignore[arg-type]
 
     def test_that_utf8_values_can_be_forced_to_bytes(self) -> None:
         data = b'a ascii value'
-        dumped = self.transcoder.packb(data)
-        self.assertEqual(self.transcoder.unpackb(dumped), data)
-        self.assertEqual(dumped, pack_bytes(data))
+        self.assert_packed_value_equals(data, pack_bytes(data))
 
     def test_that_dicts_are_sent_as_maps(self) -> None:
         data = {'compact': True, 'schema': 0}
-        dumped = self.transcoder.packb(data)
-        self.assertEqual(b'\x82\xa7compact\xc3\xa6schema\x00', dumped)
+        self.assert_packed_value_equals(
+            data, b'\x82\xa7compact\xc3\xa6schema\x00'
+        )
 
     def test_that_transcoder_creation_fails_if_umsgpack_is_missing(
         self,
@@ -761,76 +709,36 @@ class MsgPackTranscoderTests(unittest.TestCase):
 
     def test_that_decimals_are_converted_to_floats(self) -> None:
         pi = decimal.Decimal('3.142857142857142857142857143')
-        dumped = self.transcoder.packb(pi)
         # 0xCB -> 8 byte IEEE float in big endian order
-        self.assertEqual(0xCB, dumped[0])
-        self.assertEqual(struct.pack('>d', float(pi)), dumped[1:])
-
-    def test_that_paths_are_converted_to_strings(self) -> None:
-        path = pathlib.Path('/home/user/file.txt')
-        dumped = self.transcoder.packb(path)
-        self.assertEqual(self.transcoder.unpackb(dumped), str(path))
-        self.assertEqual(dumped, pack_string(str(path)))
-
-    def test_that_ipv4_addresses_are_converted_to_strings(self) -> None:
-        addr = ipaddress.IPv4Address('192.168.1.1')
-        dumped = self.transcoder.packb(addr)
-        self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
-        self.assertEqual(dumped, pack_string(str(addr)))
-
-    def test_that_ipv6_addresses_are_converted_to_strings(self) -> None:
-        addr = ipaddress.IPv6Address('2001:db8::1')
-        dumped = self.transcoder.packb(addr)
-        self.assertEqual(self.transcoder.unpackb(dumped), str(addr))
-        self.assertEqual(dumped, pack_string(str(addr)))
-
-    def test_that_arrays_are_converted_to_lists(self) -> None:
-        arr = array.array('i', [1, 2, 3, 4, 5])
-        dumped = self.transcoder.packb(arr)
-        unpacked = self.transcoder.unpackb(dumped)
-        self.assertEqual(arr.tolist(), unpacked)
-
-    def test_that_named_tuples_are_treated_as_sequences(self) -> None:
-        point = Point(3, 4)
-        dumped = self.transcoder.packb(point)
-        unpacked = umsgpack.unpackb(dumped)
-        self.assertEqual([3, 4], unpacked)
-
-        typed_point = PointClass(3, 4)
-        dumped = self.transcoder.packb(typed_point)
-        unpacked = umsgpack.unpackb(dumped)
-        self.assertEqual([3, 4], unpacked)
+        self.assert_packed_value_equals(
+            pi, b'\xcb' + struct.pack('>d', float(pi))
+        )
 
     def test_that_dataclasses_are_dumped_as_mappings(self) -> None:
         when = datetime.datetime.now(datetime.timezone.utc)
         event = Event('Something Happened', when)
-        encoded_date = umsgpack.packb(when.isoformat())
-        dumped = self.transcoder.packb(event)
-        self.assertEqual(
-            b'\x82\xa5event\xb2Something Happened\xa4when' + encoded_date,
-            dumped,
+        self.assert_packed_value_equals(
+            event,
+            b'\x82\xa5event\xb2Something Happened\xa4when'
+            + pack_string(when.isoformat()),
         )
 
-    def test_enum_support(self) -> None:
-        status = http.HTTPStatus.OK
-        dumped = self.transcoder.packb(status)
-        int_value = unwrap_as(int, umsgpack.unpackb(dumped))
-        self.assertEqual(status.value, int_value)
-        self.assertEqual(status, http.HTTPStatus(int_value))
 
-        colors = (Color.RED, Color.GREEN)
-        dumped = self.transcoder.packb(colors)
-        list_value = unwrap_as(list, umsgpack.unpackb(dumped))
-        self.assertEqual([c.value for c in colors], list_value)
-        self.assertEqual(list(colors), [Color(c) for c in list_value])
-
-
-class FormUrlEncodingTranscoderTests(unittest.TestCase):
+class FormUrlEncodingTranscoderTests(TypeCoverageTestCase):
     transcoder: type_info.Transcoder
 
     def setUp(self) -> None:
         super().setUp()
         self.transcoder = transcoders.FormUrlEncodedTranscoder()
+        pi = decimal.Decimal('3.142857142857142857142857143')
+        self.test_cases.extend([(pi, str(pi))])
+
+    def format_value(self, value: object) -> object:
+        if isinstance(value, bool):
+            return str(value).lower()
+        if value is None:
+            return ''
+        return str(value)
 
     def test_simple_deserialization(self) -> None:
         body = typing.cast(
@@ -863,36 +771,6 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
             b'kolor=%bf%F3%b3ty', encoding='iso-8859-2'
         )
         self.assertEqual({'kolor': 'żółty'}, body)
-
-    def test_simple_serialization(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        id_val = uuid.uuid4()
-        content_type, result = self.transcoder.to_bytes(
-            {
-                'integer': 12,
-                'float': math.pi,
-                'string': 'percent quoted',
-                'datetime': now,
-                'date': now.date(),
-                'time': now.time(),
-                'id': id_val,
-            }
-        )
-        self.assertEqual(content_type, 'application/x-www-formurlencoded')
-        self.assertEqual(
-            result.decode(),
-            '&'.join(
-                [
-                    'integer=12',
-                    f'float={math.pi}',
-                    'string=percent%20quoted',
-                    'datetime=' + urllib.parse.quote(now.isoformat()),
-                    'date=' + urllib.parse.quote(now.date().isoformat()),
-                    'time=' + urllib.parse.quote(now.time().isoformat()),
-                    f'id={id_val}',
-                ]
-            ),
-        )
 
     def test_that_serialization_encoding_can_be_overridden(self) -> None:
         _, result = self.transcoder.to_bytes(
@@ -950,17 +828,13 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual(expected.encode(), result)
 
     def test_serialization_of_primitives(self) -> None:
-        id_val = uuid.uuid4()
         expectations = {
             None: b'',
             'a string': b'a%20string',
-            10: b'10',
-            2.3: str(2.3).encode(),
             True: b'true',
             False: b'false',
             b'\xfe\xed\xfa\xce': b'%FE%ED%FA%CE',
             memoryview(b'\xfe\xed\xfa\xce'): b'%FE%ED%FA%CE',
-            id_val: str(id_val).encode(),
         }
         for value, expected in expectations.items():
             _, result = self.transcoder.to_bytes(value)
@@ -996,26 +870,6 @@ class FormUrlEncodingTranscoderTests(unittest.TestCase):
         self.assertEqual(
             b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
         )
-
-    def test_that_decimals_are_stringified(self) -> None:
-        pi = decimal.Decimal('3.142857142857142857142857143')
-        _, result = self.transcoder.to_bytes({'pi': pi})
-        self.assertEqual('pi={}'.format(str(pi)).encode(), result)
-
-    def test_that_paths_are_stringified(self) -> None:
-        path = pathlib.Path('/home/user/file.txt')
-        _, result = self.transcoder.to_bytes({'path': path})
-        self.assertEqual(b'path=%2Fhome%2Fuser%2Ffile.txt', result)
-
-    def test_that_ipv4_addresses_are_stringified(self) -> None:
-        addr = ipaddress.IPv4Address('192.168.1.1')
-        _, result = self.transcoder.to_bytes({'addr': addr})
-        self.assertEqual(b'addr=192.168.1.1', result)
-
-    def test_that_ipv6_addresses_are_stringified(self) -> None:
-        addr = ipaddress.IPv6Address('2001:db8::1')
-        _, result = self.transcoder.to_bytes({'addr': addr})
-        self.assertEqual(b'addr=2001%3Adb8%3A%3A1', result)
 
     def test_that_arrays_are_serialized_as_sequences(self) -> None:
         transcoder = transcoders.FormUrlEncodedTranscoder()
