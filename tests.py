@@ -850,7 +850,13 @@ class FormUrlEncodingTranscoderTests(TypeCoverageTestCase):
             self.assertEqual(str(value).encode(), result)
 
     def test_serialization_of_sequences(self) -> None:
-        value = {'list': [1, 2], 'tuple': (1, 2), 'set': {1, 2}, 'str': 'val'}
+        value = {
+            'array': array.array('i', [1, 2]),
+            'list': [1, 2],
+            'tuple': (1, 2),
+            'set': {1, 2},
+            'str': 'val',
+        }
 
         transcoder = unwrap_as(
             transcoders.FormUrlEncodedTranscoder, self.transcoder
@@ -859,8 +865,11 @@ class FormUrlEncodingTranscoderTests(TypeCoverageTestCase):
         _, result = transcoder.to_bytes(value)
         self.assertEqual(
             (
-                b'list=%5B1%2C%202%5D&tuple=%281%2C%202%29'
-                b'&set=%7B1%2C%202%7D&str=val'
+                b'array=%5B1%2C%202%5D&'
+                b'list=%5B1%2C%202%5D&'
+                b'tuple=%281%2C%202%29'
+                b'&set=%7B1%2C%202%7D&'
+                b'str=val'
             ),
             result,
         )
@@ -868,7 +877,9 @@ class FormUrlEncodingTranscoderTests(TypeCoverageTestCase):
         transcoder.options.encode_sequences = True
         _, result = transcoder.to_bytes(value)
         self.assertEqual(
-            b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val', result
+            b'array=1&array=2&'
+            b'list=1&list=2&tuple=1&tuple=2&set=1&set=2&str=val',
+            result,
         )
 
     def test_that_arrays_are_serialized_as_sequences(self) -> None:

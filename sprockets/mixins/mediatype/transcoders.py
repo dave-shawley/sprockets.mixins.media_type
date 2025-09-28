@@ -588,6 +588,8 @@ class FormUrlEncodedTranscoder:
         elif isinstance(datum, decimal.Decimal):
             datum = str(float(datum))
         else:
+            if isinstance(datum, array.array):
+                datum = datum.tolist()
             datum = str(datum)
 
         return ''.join(char_map[c] for c in datum.encode(encoding))
@@ -600,6 +602,7 @@ class FormUrlEncodedTranscoder:
             value = value.model_dump(mode='python')
         if dataclasses.is_dataclass(value):
             value = dataclasses.asdict(value)
+
         if isinstance(value, collections.abc.Mapping):
             tuples = value.items()
         else:
