@@ -57,23 +57,6 @@ class PydanticModel(Protocol):
         ...
 
 
-SerializablePrimitives = (
-    type(None),
-    bool,
-    bytearray,
-    bytes,
-    decimal.Decimal,
-    float,
-    int,
-    ipaddress.IPv4Address,
-    ipaddress.IPv6Address,
-    memoryview,
-    pathlib.Path,
-    str,
-    uuid.UUID,
-)
-"""Use this with isinstance to identify simple values."""
-
 if sys.version_info >= (3, 12):
     ArrayPrimitives: typing.TypeAlias = (
         array.array[float] | array.array[int] | array.array[str]
