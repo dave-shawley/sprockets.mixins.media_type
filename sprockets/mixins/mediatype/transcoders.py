@@ -166,9 +166,7 @@ class JSONTranscoder(handlers.TextContentHandler):
             'type_info.Deserialized', json.loads(str_repr, **self.load_options)
         )
 
-    def dump_object(
-        self, obj: type_info.Serializable
-    ) -> str | dict[str, object] | float:
+    def dump_object(self, obj: type_info.Serializable) -> CoercedValue:
         """
         Called to encode unrecognized object.
 
@@ -215,8 +213,6 @@ class JSONTranscoder(handlers.TextContentHandler):
         if (result := _coerce_value(obj)) is not None:
             if isinstance(result, bytes):
                 return base64.b64encode(result).decode('ASCII')
-            if isinstance(result, list):
-                return result  # type: ignore[return-value]
             return result
         if pydantic is not None and isinstance(obj, pydantic.BaseModel):
             return obj.model_dump(mode='python')
@@ -354,7 +350,7 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         if pydantic is not None and isinstance(datum, pydantic.BaseModel):
             return self.normalize_datum(datum.model_dump(mode='python'))
 
-        if isinstance(datum, (collections.abc.Sequence, collections.abc.Set)):
+        if isinstance(datum, collections.abc.Sequence):
             return [self.normalize_datum(item) for item in datum]  # type: ignore[arg-type]
 
         if isinstance(datum, collections.abc.Mapping):
@@ -575,9 +571,9 @@ class FormUrlEncodedTranscoder:
     ) -> str:
         if isinstance(datum, str):
             pass  # optimization: skip additional checks for strings
-        elif isinstance(
-            datum, (float, int, str, uuid.UUID)
-        ) and not isinstance(datum, bool):
+        elif isinstance(datum, (float, int, uuid.UUID)) and not isinstance(
+            datum, bool
+        ):
             datum = str(datum)
         elif (
             isinstance(datum, collections.abc.Hashable)
