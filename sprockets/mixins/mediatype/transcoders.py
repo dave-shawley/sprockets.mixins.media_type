@@ -13,6 +13,7 @@ import array
 import base64
 import collections.abc
 import dataclasses
+import datetime
 import decimal
 import enum
 import ipaddress
@@ -70,6 +71,57 @@ checks in the :func:`_coerce_value` function.
 """
 
 
+def _timedelta_to_iso8601(td: datetime.timedelta) -> str:
+    """Convert a timedelta to ISO8601 duration format.
+
+    Args:
+        td: The timedelta to convert
+
+    Returns:
+        ISO8601 duration string (e.g., 'P1DT1H1M1.123456S')
+    """
+    # Extract components
+    days = td.days
+    total_seconds = td.seconds  # seconds within the current day
+    microseconds = td.microseconds
+
+    # Break down the seconds within the day
+    hours = total_seconds // 3600
+    remaining_seconds = total_seconds % 3600
+    minutes = remaining_seconds // 60
+    seconds = remaining_seconds % 60
+
+    # Add microseconds as fractional part
+    fractional_seconds = seconds + microseconds / 1e6
+
+    # Build ISO8601 duration string
+    duration = 'P'
+    if days:
+        duration += f'{days}D'
+
+    # Time components - always add T and seconds for non-day-only durations
+    time_component_needed = (
+        hours or minutes or fractional_seconds or (not days)
+    )
+    if time_component_needed:
+        duration += 'T'
+        if hours:
+            duration += f'{hours}H'
+        if minutes:
+            duration += f'{minutes}M'
+        if fractional_seconds or (not days and not hours and not minutes):
+            # Always show seconds for zero duration or with fractional seconds
+            # Format fractional seconds to avoid scientific notation
+            if fractional_seconds == int(fractional_seconds):
+                duration += f'{int(fractional_seconds)}S'
+            else:
+                duration += (
+                    f'{fractional_seconds:.6f}'.rstrip('0').rstrip('.') + 'S'
+                )
+
+    return duration
+
+
 def _coerce_value(  # noqa: PLR0911
     obj: type_info.Serializable,
 ) -> CoercedValue:
@@ -107,6 +159,8 @@ def _coerce_value(  # noqa: PLR0911
     # so we need to use isinstance instead of an exact match.
     if isinstance(obj, pathlib.Path):
         return str(obj)
+    if isinstance(obj, datetime.timedelta):
+        return _timedelta_to_iso8601(obj)
     return None
 
 
@@ -195,6 +249,9 @@ class JSONTranscoder(handlers.TextContentHandler):
         |                             | extended format including separators, |
         |                             | milliseconds, and the timezone        |
         |                             | designator.                           |
+        +-----------------------------+---------------------------------------+
+        | :class:`datetime.timedelta` | ISO8601 formatted duration string     |
+        |                             | (e.g., ``P1DT1H1M1.123456S``)         |
         +-----------------------------+---------------------------------------+
         | :class:`decimal.Decimal`    | Same as ``float(value)``              |
         +-----------------------------+---------------------------------------+
@@ -301,6 +358,8 @@ class MsgPackTranscoder(handlers.BinaryContentHandler):
         | :class:`uuid.UUID`                | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`datetime.datetime`        | Converted to String           |
+        +-----------------------------------+-------------------------------+
+        | :class:`datetime.timedelta`       | Converted to String           |
         +-----------------------------------+-------------------------------+
         | :class:`decimal.Decimal`          | `float family`_               |
         +-----------------------------------+-------------------------------+
@@ -429,6 +488,9 @@ class FormUrlEncodedTranscoder:
     +--------------------------------+----------------------------------------+
     | :class:`datetime.datetime`     | result of calling                      |
     |                                | :meth:`~datetime.datetime.isoformat`   |
+    +--------------------------------+----------------------------------------+
+    | :class:`datetime.timedelta`    | ISO8601 formatted duration string      |
+    |                                | (e.g., ``P1DT1H1M1.123456S``)          |
     +--------------------------------+----------------------------------------+
     | :class:`pydantic.BaseModel`    | encoded after calling ``model_dump()`` |
     |                                | in "python" mode                       |
@@ -564,7 +626,13 @@ class FormUrlEncodedTranscoder:
     def _encode(
         self,
         datum: typing.Union[
-            bool, None, float, int, str, type_info.DefinesIsoFormat
+            bool,
+            None,
+            float,
+            int,
+            str,
+            datetime.timedelta,
+            type_info.DefinesIsoFormat,
         ],
         char_map: typing.Mapping[int, str],
         encoding: str,
@@ -587,6 +655,8 @@ class FormUrlEncodedTranscoder:
             datum = datum.isoformat()
         elif isinstance(datum, decimal.Decimal):
             datum = str(float(datum))
+        elif isinstance(datum, datetime.timedelta):
+            datum = _timedelta_to_iso8601(datum)
         else:
             if isinstance(datum, array.array):
                 datum = datum.tolist()

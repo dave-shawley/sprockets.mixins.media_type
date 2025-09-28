@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import array
+import datetime
 import decimal
 import ipaddress
 import pathlib
@@ -73,6 +74,7 @@ Serializable: typing.TypeAlias = typing.Union[
     bool,
     bytearray,
     bytes,
+    datetime.timedelta,
     decimal.Decimal,
     float,
     int,

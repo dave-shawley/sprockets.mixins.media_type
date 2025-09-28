@@ -32,6 +32,7 @@ from sprockets.mixins.mediatype import (
     transcoders,
     type_info,
 )
+from sprockets.mixins.mediatype.transcoders import _timedelta_to_iso8601
 
 
 class Context:
@@ -416,6 +417,10 @@ class TypeCoverageTestCase(unittest.TestCase):
             (now, now.isoformat()),
             (now.date(), now.date().isoformat()),
             (now.time(), now.time().isoformat()),
+            (
+                datetime.timedelta(seconds=86400 + 3600 + 60 + 1.123456),
+                'P1DT1H1M1.123456S',
+            ),
             (some_id, str(some_id)),
             (True, True),
             (False, False),
@@ -423,6 +428,13 @@ class TypeCoverageTestCase(unittest.TestCase):
             (pathlib.Path('/home/user/file.txt'), '/home/user/file.txt'),
             (ipaddress.IPv4Address('192.168.1.1'), '192.168.1.1'),
             (ipaddress.IPv6Address('2001:db8::1'), '2001:db8::1'),
+            (datetime.timedelta(seconds=0), 'PT0S'),
+            (
+                datetime.timedelta(
+                    days=1, hours=2, minutes=3, seconds=4, microseconds=567891
+                ),
+                'P1DT2H3M4.567891S',
+            ),
         ]
 
     def format_value(self, value: object) -> object:
@@ -967,3 +979,163 @@ class PydanticSupportTests(unittest.TestCase):
             self.normalized, doseq=True, quote_via=urllib.parse.quote
         )
         self.assertEqual(expected.encode(), result)
+
+
+class TimedeltaSerializationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.json_transcoder = transcoders.JSONTranscoder()
+        self.msgpack_transcoder = transcoders.MsgPackTranscoder()
+        self.form_transcoder = transcoders.FormUrlEncodedTranscoder()
+
+    def test_zero_timedelta(self) -> None:
+        td = datetime.timedelta(0)
+        expected = 'PT0S'
+
+        # Test JSON transcoder
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+        # Test MsgPack transcoder
+        _, msgpack_result = self.msgpack_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, umsgpack.unpackb(msgpack_result))
+
+        # Test Form URL encoded transcoder
+        _, form_result = self.form_transcoder.to_bytes({'td': td})
+        self.assertEqual(f'td={expected}'.encode(), form_result)
+
+    def test_microseconds_only(self) -> None:
+        td = datetime.timedelta(microseconds=123456)
+        expected = 'PT0.123456S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_seconds_only(self) -> None:
+        td = datetime.timedelta(seconds=42)
+        expected = 'PT42S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_minutes_only(self) -> None:
+        td = datetime.timedelta(minutes=5)
+        expected = 'PT5M'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_hours_only(self) -> None:
+        td = datetime.timedelta(hours=3)
+        expected = 'PT3H'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_days_only(self) -> None:
+        td = datetime.timedelta(days=7)
+        expected = 'P7D'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_fractional_seconds(self) -> None:
+        td = datetime.timedelta(seconds=1.5)
+        expected = 'PT1.5S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_complex_duration(self) -> None:
+        td = datetime.timedelta(
+            days=365, hours=12, minutes=30, seconds=45, microseconds=123456
+        )
+        expected = 'P365DT12H30M45.123456S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_large_values(self) -> None:
+        td = datetime.timedelta(
+            days=9999, hours=23, minutes=59, seconds=59, microseconds=999999
+        )
+        expected = 'P9999DT23H59M59.999999S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_small_microseconds(self) -> None:
+        td = datetime.timedelta(microseconds=1)
+        expected = 'PT0.000001S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_negative_timedelta(self) -> None:
+        # Note: Python's timedelta represents negative durations
+        # differently than positive ones
+        td = datetime.timedelta(days=-1)
+        # Negative timedelta: -1 day, 0:00:00 -> days=-1, seconds=0
+        expected = 'P-1D'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_mixed_positive_negative_components(self) -> None:
+        # Create a timedelta that results in negative days but positive seconds
+        td = datetime.timedelta(seconds=-3661)  # -1 hour, -1 minute, -1 second
+        # This becomes: days=-1, seconds=82739 (22:58:59 remaining in day)
+        expected = 'P-1DT22H58M59S'
+
+        _, json_result = self.json_transcoder.to_bytes({'td': td})
+        self.assertEqual({'td': expected}, json.loads(json_result))
+
+    def test_direct_transcoder_function(self) -> None:
+        test_cases = [
+            (datetime.timedelta(0), 'PT0S'),
+            (datetime.timedelta(seconds=10), 'PT10S'),
+            (datetime.timedelta(days=1), 'P1D'),
+            (datetime.timedelta(hours=1), 'PT1H'),
+            (datetime.timedelta(minutes=1), 'PT1M'),
+            (datetime.timedelta(seconds=1), 'PT1S'),
+            (datetime.timedelta(microseconds=1), 'PT0.000001S'),
+            (
+                datetime.timedelta(days=1, hours=2, minutes=3, seconds=4.5),
+                'P1DT2H3M4.5S',
+            ),
+            (datetime.timedelta(days=-1), 'P-1D'),
+        ]
+
+        for td, expected in test_cases:
+            with self.subTest(timedelta=td):
+                result = _timedelta_to_iso8601(td)
+                self.assertEqual(expected, result)
+
+    def test_roundtrip_serialization_consistency(self) -> None:
+        test_timedeltas = [
+            datetime.timedelta(0),
+            datetime.timedelta(days=1),
+            datetime.timedelta(hours=2, minutes=30),
+            datetime.timedelta(seconds=1.123456),
+            datetime.timedelta(days=7, hours=8, minutes=9, seconds=10.111),
+        ]
+
+        for td in test_timedeltas:
+            with self.subTest(timedelta=td):
+                # All transcoders should produce same string representation
+                _, json_result = self.json_transcoder.to_bytes({'td': td})
+                _, msgpack_result = self.msgpack_transcoder.to_bytes(
+                    {'td': td}
+                )
+                _, form_result = self.form_transcoder.to_bytes({'td': td})
+
+                json_data = unwrap_as(dict, json.loads(json_result))
+                msgpack_data = unwrap_as(
+                    dict, umsgpack.unpackb(msgpack_result)
+                )
+                form_decoded = urllib.parse.unquote(
+                    form_result.decode().split('=', 1)[1]
+                )
+
+                self.assertEqual(json_data['td'], msgpack_data['td'])
+                self.assertEqual(json_data['td'], form_decoded)
