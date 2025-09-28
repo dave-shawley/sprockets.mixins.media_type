@@ -585,6 +585,8 @@ class FormUrlEncodedTranscoder:
             return ''.join(char_map[c] for c in datum)
         elif isinstance(datum, type_info.DefinesIsoFormat):
             datum = datum.isoformat()
+        elif isinstance(datum, decimal.Decimal):
+            datum = str(float(datum))
         else:
             datum = str(datum)
 

@@ -731,7 +731,7 @@ class FormUrlEncodingTranscoderTests(TypeCoverageTestCase):
         super().setUp()
         self.transcoder = transcoders.FormUrlEncodedTranscoder()
         pi = decimal.Decimal('3.142857142857142857142857143')
-        self.test_cases.extend([(pi, str(pi))])
+        self.test_cases.extend([(pi, str(float(pi)))])
 
     def format_value(self, value: object) -> object:
         if isinstance(value, bool):
